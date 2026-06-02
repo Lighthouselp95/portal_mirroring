@@ -210,18 +210,31 @@
                 .then(res => res.ok ? res.json() : Promise.reject())
                 .then(data => {
                     let all = [...(data.calls || []).map(i => ({ ...i, type: 'CALL' })), ...(data.sms || []).map(i => ({ ...i, type: 'SMS' }))];
-                    all.sort((a, b) => b.id.localeCompare(a.id));
 
+                    // 1. Lọc và phát thông báo ngay nếu phát hiện ID lớn hơn mốc thời gian cũ
                     all.forEach(item => {
                         if (latestId && item.id > latestId) {
                             sendBrowserNotification(item);
                         }
                     });
 
-                    if (all.length > 0) latestId = all[0].id;
+                    // 2. SỬA TẠI ĐÂY: Tìm ID lớn nhất thực sự trong toàn bộ danh sách để làm mốc chặn tiếp theo
+                    if (all.length > 0) {
+                        // Tách phần số Timestamp ở đầu ID ra để so sánh Max
+                        let maxNumericId = Math.max(...all.map(item => parseInt(item.id.split('_')[0]) || 0));
 
+                        // Tìm lại item có chứa số max đó để gán chuẩn chuỗi ID cho lần fetch sau
+                        let maxItem = all.find(item => item.id.startsWith(maxNumericId.toString()));
+                        if (maxItem) {
+                            latestId = maxItem.id;
+                        }
+                    }
+
+                    // 3. Sắp xếp lại để hiển thị lên giao diện cho đẹp (Mới nhất lên đầu)
+                    all.sort((a, b) => b.id.localeCompare(a.id));
                     handleServerData(data);
-                    pollingTimer = setTimeout(syncLogs, 3000);
+
+                    pollingTimer = setTimeout(syncLogs, 4000);
                 })
                 .catch(() => {
                     document.getElementById("status-text").innerHTML = "⚠️ Mất kết nối, đang thử lại...";
