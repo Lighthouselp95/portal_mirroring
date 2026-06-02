@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mirror Portal</title>
-    <style>
+<style>
         /* Toàn bộ giao diện chuyển sang tông màu tối giản, không màu sắc */
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
@@ -14,16 +14,38 @@
             margin: 0;
             font-size: 16px;
             color: #1a1a1a;
+            box-sizing: border-box;
         }
 
-        /* Khung chứa thiết kế phẳng tuyệt đối, mỏng và tối giản */
-        .box {
-            max-width: 700px;
-            margin: 20px auto;
+        /* BẢO VỆ BỐ CỤC TỔNG: Chuyển sang CSS Grid chia cột linh hoạt.
+           Cột 1 (Nhập cấu hình): Cố định 300px để không bị méo.
+           Cột 2 (Vùng chứa Log ở giữa): Dùng '1fr' để tự động mở rộng tối đa ra toàn bộ màn hình.
+        */
+        .main-container {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 24px;
+            max-width: 1600px; /* Nới rộng tổng thể để phân tách 2 cột trên màn hình lớn */
+            margin: 0 auto;
+        }
+
+        /* Khung chứa cấu hình bên trái (Giữ nguyên phong cách phẳng tinh gọn) */
+        .config-box {
             background: #ffffff;
             padding: 20px;
             border-radius: 4px;
             border: 1px solid #e0e0e0;
+            align-self: start; /* Giữ khung cấu hình cố định ở đỉnh, không bị co giãn theo chiều dọc */
+        }
+
+        /* CỘT Ở GIỮA ĐÃ ĐƯỢC MỞ RỘNG - NƠI CHỨA DANH SÁCH LOG */
+        .log-box {
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
+            width: 100%;
+            box-sizing: border-box;
         }
 
         .hidden {
@@ -78,30 +100,24 @@
             background: #222222;
         }
 
-        /* DANH SÁCH ITEMS: Ép mỏng tối đa chiều dọc, bỏ toàn bộ màu cam/xanh */
+        /* DANH SÁCH ITEMS: Ép mỏng tối đa chiều dọc, tràn rộng theo chiều ngang cột giữa */
         .log-item {
-            padding: 6px 12px;
-            /* Giảm padding dọc xuống còn 6px cực mỏng */
+            padding: 8px 16px; /* Tăng nhẹ padding ngang để hiển thị cân đối khi cột mở rộng */
             margin: 6px 0;
-            /* Thu hẹp khoảng cách giữa các dòng */
             border-radius: 0;
             background: #ffffff;
             border: 1px solid #e0e0e0;
             border-left: 4px solid #000000;
-            /* Tất cả dùng chung viền đen mặc định */
         }
 
         /* CALL và SMS chỉ phân biệt nhẹ bằng độ đậm nhạt của viền trái, KHÔNG DÙNG MÀU NỀN */
         .CALL {
-            border-left-color: #000000;
+            border-left-color: #000000; /* Cuộc gọi: Viền đen đậm */
         }
 
-        /* Cuộc gọi: Viền đen đậm */
         .SMS {
-            border-left-color: #888888;
+            border-left-color: #888888; /* Tin nhắn: Viền xám mờ */
         }
-
-        /* Tin nhắn: Viền xám mờ */
 
         /* Phần chứa thời gian và loại log */
         .meta {
@@ -109,7 +125,7 @@
             justify-content: space-between;
             font-size: 12px;
             color: #666666;
-            margin-bottom: 2px;
+            margin-bottom: 4px;
         }
 
         /* Số điện thoại đối tác viết mỏng gọn */
@@ -129,7 +145,16 @@
             padding: 0;
             background: none;
             border: none;
-            line-height: 1.4;
+            line-height: 1.5;
+            word-break: break-word; /* Đảm bảo tin nhắn quá dài tự động xuống hàng, không đâm thủng khung */
+        }
+
+        /* HỖ TRỢ ĐÁP ỨNG TRÊN DI ĐỘNG (RESPONSIVE) */
+        @media (max-width: 768px) {
+            .main-container {
+                grid-template-columns: 1fr; /* Trên điện thoại sẽ tự động xếp dọc thành 1 cột như cũ */
+                gap: 16px;
+            }
         }
     </style>
 </head>
