@@ -192,9 +192,17 @@
 
                     let all = [...(data.calls || []), ...(data.sms || [])];
                     if (all.length > 0) {
-                        let maxNumericId = Math.max(...all.map(item => parseInt(item.id.split('_')[0]) || 0));
-                        let maxItem = all.find(item => item.id.startsWith(maxNumericId.toString()));
-                        if (maxItem) latestId = maxItem.id;
+                        // Lọc bỏ tin nhắn INIT, chỉ lấy các tin có số timestamp ở đầu để tìm mốc chặn ban đầu
+                        let validItems = all.filter(item => !item.id.startsWith("INIT_"));
+                        if (validItems.length > 0) {
+                            let maxNumericId = Math.max(...validItems.map(item => parseInt(item.id.split('_')[0]) || 0));
+                            let maxItem = validItems.find(item => item.id.startsWith(maxNumericId.toString()));
+                            if (maxItem) latestId = maxItem.id;
+                        } else {
+                            // Nếu danh sách chỉ có mỗi tin INIT thì lấy luôn tin đó làm mốc chặn
+                            all.sort((a, b) => b.id.localeCompare(a.id));
+                            latestId = all[0].id;
+                        }
                     }
                     handleServerData(data);
                     pollingTimer = setTimeout(syncLogs, 3000);
@@ -211,26 +219,33 @@
                 .then(data => {
                     let all = [...(data.calls || []).map(i => ({ ...i, type: 'CALL' })), ...(data.sms || []).map(i => ({ ...i, type: 'SMS' }))];
 
-                    // 1. Lọc và phát thông báo ngay nếu phát hiện ID lớn hơn mốc thời gian cũ
+                    // Chuyển đổi mốc latestId hiện tại sang dạng số để so sánh chuẩn xác
+                    let currentLatestTimestamp = latestId.startsWith("INIT_") ? 0 : (parseInt(latestId.split('_')[0]) || 0);
+
+                    // 1. Chỉ phát thông báo cho tin thực sự mới hơn về mặt thời gian số học
                     all.forEach(item => {
-                        if (latestId && item.id > latestId) {
-                            sendBrowserNotification(item);
+                        if (!item.id.startsWith("INIT_")) {
+                            let itemTimestamp = parseInt(item.id.split('_')[0]) || 0;
+                            if (currentLatestTimestamp > 0 && itemTimestamp > currentLatestTimestamp) {
+                                sendBrowserNotification(item);
+                            }
                         }
                     });
 
-                    // 2. SỬA TẠI ĐÂY: Tìm ID lớn nhất thực sự trong toàn bộ danh sách để làm mốc chặn tiếp theo
+                    // 2. Tìm ID lớn nhất thực sự trong toàn bộ danh sách để cập nhật mốc chặn tiếp theo
                     if (all.length > 0) {
-                        // Tách phần số Timestamp ở đầu ID ra để so sánh Max
-                        let maxNumericId = Math.max(...all.map(item => parseInt(item.id.split('_')[0]) || 0));
-
-                        // Tìm lại item có chứa số max đó để gán chuẩn chuỗi ID cho lần fetch sau
-                        let maxItem = all.find(item => item.id.startsWith(maxNumericId.toString()));
-                        if (maxItem) {
-                            latestId = maxItem.id;
+                        let validItems = all.filter(item => !item.id.startsWith("INIT_"));
+                        if (validItems.length > 0) {
+                            let maxNumericId = Math.max(...validItems.map(item => parseInt(item.id.split('_')[0]) || 0));
+                            let maxItem = validItems.find(item => item.id.startsWith(maxNumericId.toString()));
+                            if (maxItem) latestId = maxItem.id;
+                        } else {
+                            all.sort((a, b) => b.id.localeCompare(a.id));
+                            latestId = all[0].id;
                         }
                     }
 
-                    // 3. Sắp xếp lại để hiển thị lên giao diện cho đẹp (Mới nhất lên đầu)
+                    // 3. Sắp xếp hiển thị giao diện web
                     all.sort((a, b) => b.id.localeCompare(a.id));
                     handleServerData(data);
 
