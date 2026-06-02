@@ -37,6 +37,10 @@ function writeDatabase(data) {
  * 1. API NHẬN REQUEST ĐẨY LÊN TỪ APP MOBILE (POST)
  * Thiết bị đẩy lên đủ: myPhoneNumber, token, type, incomingNumber, content, time
  */
+// Thêm dòng này để Server hiểu và tự động trả file app.html về khi truy cập trang chủ
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'app.html'));
+});
 app.post('/api/push', (express.json()), (req, res) => {
     const { myPhoneNumber, token, type, incomingNumber, content, time } = req.body;
 
