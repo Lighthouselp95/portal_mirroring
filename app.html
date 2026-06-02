@@ -257,16 +257,21 @@
         function syncLogs() {
             if (!inputPhone || !inputToken) return;
 
-            fetch(`/api/fetch?phone=${inputPhone}&token=${inputToken}`)
+            // Thêm timestamp để chống cache như đã bàn
+            fetch(`/api/fetch?phone=${inputPhone}&token=${inputToken}&_=${Date.now()}`)
                 .then(res => {
-                    if (res.status === 200) return res.json();
-                    throw new Error("Mất kết nối");
+                    if (!res.ok) throw new Error("Server Error");
+                    return res.json();
                 })
                 .then(data => {
                     handleServerData(data);
                 })
-                .catch(() => {
-                    document.getElementById("status-text").innerHTML = "<span style='color:red;'>❌ Mất kết nối tới Server.</span>";
+                .catch(err => {
+                    // Đừng báo lỗi đỏ ngay lập tức
+                    const statusTxt = document.getElementById("status-text");
+                    statusTxt.innerHTML = "⚠️ Kết nối chập chờn... đang thử lại.";
+                    statusTxt.style.color = "orange";
+                    console.error("Fetch failed, retrying...", err);
                 });
         }
 
