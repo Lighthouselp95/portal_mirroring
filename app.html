@@ -232,20 +232,20 @@
                 .then(data => {
                     let all = [...(data.calls || []).map(i => ({ ...i, type: 'CALL' })), ...(data.sms || []).map(i => ({ ...i, type: 'SMS' }))];
 
-                    // Chuyển đổi mốc latestId hiện tại sang dạng số để so sánh chuẩn xác
                     let currentLatestTimestamp = latestId.startsWith("INIT_") ? 0 : (parseInt(latestId.split('_')[0]) || 0);
 
-                    // 1. Chỉ phát thông báo cho tin thực sự mới hơn về mặt thời gian số học
+                    // 1. Phát thông báo Chrome cho phần tử mới xuất hiện
                     all.forEach(item => {
                         if (!item.id.startsWith("INIT_")) {
                             let itemTimestamp = parseInt(item.id.split('_')[0]) || 0;
+                            // Điều kiện tiên quyết: Phải có mốc cũ và timestamp tin mới phải lớn hơn mốc cũ
                             if (currentLatestTimestamp > 0 && itemTimestamp > currentLatestTimestamp) {
                                 sendBrowserNotification(item);
                             }
                         }
                     });
 
-                    // 2. Tìm ID lớn nhất thực sự trong toàn bộ danh sách để cập nhật mốc chặn tiếp theo
+                    // 2. Cập nhật mốc chặn latestId lớn nhất cho chu kỳ sau
                     if (all.length > 0) {
                         let validItems = all.filter(item => !item.id.startsWith("INIT_"));
                         if (validItems.length > 0) {
@@ -258,9 +258,9 @@
                         }
                     }
 
-                    // 3. Sắp xếp hiển thị giao diện web
+                    // 3. Sắp xếp lại danh sách và đẩy vào hàm render giao diện công bằng
                     all.sort((a, b) => b.id.localeCompare(a.id));
-                    handleServerData(data);
+                    renderLogs(all); // Dùng mảng đã gộp 'all' thay vì 'data' gốc để render đồng bộ màu sắc
 
                     pollingTimer = setTimeout(syncLogs, 4000);
                 })
@@ -297,12 +297,22 @@
 
             listDiv.innerHTML = "";
 
+            // Lấy mốc thời gian số học của latestId hiện tại để so sánh
+            let currentLatestTimestamp = latestId.startsWith("INIT_") ? 0 : (parseInt(latestId.split('_')[0]) || 0);
+
             logs.forEach(item => {
                 const clone = template.content.cloneNode(true);
                 const itemDiv = clone.querySelector('.log-item');
 
                 itemDiv.classList.add(item.type);
-                if (item.isNew) itemDiv.classList.add('new-item');
+
+                // SỬA TẠI ĐÂY: Chỉ bôi vàng nếu ID của tin này lớn hơn hẳn mốc chặn latestId (tức là tin mới tinh vừa nổ)
+                if (!item.id.startsWith("INIT_")) {
+                    let itemTimestamp = parseInt(item.id.split('_')[0]) || 0;
+                    if (currentLatestTimestamp > 0 && itemTimestamp > currentLatestTimestamp) {
+                        itemDiv.classList.add('new-item');
+                    }
+                }
 
                 clone.querySelector('.txt-type').innerText = item.type;
                 clone.querySelector('.txt-time').innerText = item.time;
