@@ -196,7 +196,10 @@
                     document.getElementById("monitor-screen").classList.remove("initial-hidden");
 
                     let all = [...(data.calls || []), ...(data.sms || [])];
+                    // Tìm đoạn này trong hàm startPolling() của app.html và sửa lại dấu so sánh của localeCompare hoặc đảo vị trí:
                     if (all.length > 0) {
+                        // Sửa b.id.localeCompare(a.id) thành a.id.localeCompare(b.id) nếu muốn ID lớn nhất đứng đầu, 
+                        // hoặc đơn giản là dùng công thức chuẩn trị chuỗi số dưới đây:
                         all.sort((a, b) => b.id.localeCompare(a.id));
                         latestId = all[0].id;
                     }
