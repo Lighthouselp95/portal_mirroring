@@ -22,7 +22,7 @@
 <body>
 
     <div id="login-screen" class="login-box initial-hidden">
-        <h2>Đồng bộ thiết bị di động</h2>
+        <h2>Đồng bộ thiết bị</h2>
         <label>Số điện thoại:</label>
         <input type="text" id="phone-input">
         <label>Mã Token:</label>
@@ -45,10 +45,11 @@
     </div>
 
     <script>
-        let inputPhone = "";
-        let inputToken = "";
+        let inputPhone = "", inputToken = "";
 
-        // IIFE: Kiểm tra đăng nhập ngay lập tức khi load trang
+        // Xin quyền thông báo ngay khi vào trang
+        if (Notification.permission !== "granted") Notification.requestPermission();
+
         (function () {
             const savedPhone = localStorage.getItem("saved_user_phone");
             const savedToken = localStorage.getItem("saved_user_token");
@@ -66,40 +67,36 @@
             const token = document.getElementById('token-input').value.trim();
             if (!phone || !token) return;
 
-            inputPhone = phone;
-            inputToken = token;
+            inputPhone = phone; inputToken = token;
 
             fetch(`/api/fetch?phone=${phone}&token=${token}`)
-                .then(res => res.status === 200 ? res.json() : Promise.reject())
+                .then(res => res.status === 200 ? res.json() : Promise.reject("Sai thông tin"))
                 .then(data => {
                     localStorage.setItem("saved_user_phone", inputPhone);
                     localStorage.setItem("saved_user_token", inputToken);
-                    
                     document.getElementById("display-phone").innerText = data.phone;
                     document.getElementById("login-screen").classList.add("initial-hidden");
                     document.getElementById("monitor-screen").classList.remove("initial-hidden");
-
                     handleServerData(data);
-                    syncLogs(); // Gọi hàm đồng bộ đệ quy
+                    syncLogs();
                 })
-                .catch(() => {
-                    document.getElementById("login-status-text").innerText = "❌ Sai thông tin hoặc lỗi Server!";
+                .catch((err) => {
+                    document.getElementById("login-status-text").innerText = `❌ ${err}`;
                     document.getElementById("login-screen").classList.remove("initial-hidden");
                 });
         }
 
         function syncLogs() {
             if (!inputPhone || !inputToken) return;
-
             fetch(`/api/fetch?phone=${inputPhone}&token=${inputToken}&_=${Date.now()}`)
                 .then(res => res.ok ? res.json() : Promise.reject())
                 .then(data => {
                     handleServerData(data);
-                    setTimeout(syncLogs, 5000); // Đợi 5s rồi gọi tiếp
+                    setTimeout(syncLogs, 5000);
                 })
                 .catch(() => {
                     document.getElementById("status-text").innerHTML = "⚠️ Mất kết nối, đang thử lại...";
-                    setTimeout(syncLogs, 8000); // Lỗi thì đợi 8s thử lại
+                    setTimeout(syncLogs, 8000);
                 });
         }
 
@@ -107,23 +104,39 @@
             document.getElementById("status-text").innerHTML = "🟢 Trực tuyến: " + new Date().toLocaleTimeString();
             let allLogs = [...(data.calls || []).map(i=>({...i, type:'CALL'})), ...(data.sms || []).map(i=>({...i, type:'SMS'}))];
             allLogs.sort((a, b) => b.id.localeCompare(a.id));
+
+            // Logic Thông báo: So sánh ID
+            const cacheKey = `cache_${inputPhone}`;
+            const oldIds = JSON.parse(localStorage.getItem(cacheKey) || "[]");
+            
+            allLogs.forEach(item => {
+                if (!oldIds.includes(item.id)) {
+                    sendNotification(item);
+                }
+            });
+
+            localStorage.setItem(cacheKey, JSON.stringify(allLogs.map(i => i.id)));
             renderLogs(allLogs);
         }
 
+        function sendNotification(item) {
+            if (Notification.permission === "granted") {
+                new Notification(item.type === 'CALL' ? "📞 Cuộc gọi mới" : "💬 Tin nhắn mới", {
+                    body: `Số: ${item.incomingNumber}\nNội dung: ${item.content || '...'}`
+                });
+            }
+        }
+
         function renderLogs(logs) {
-            const listDiv = document.getElementById("log-list");
-            listDiv.innerHTML = logs.map(item => `
+            document.getElementById("log-list").innerHTML = logs.map(item => `
                 <div class="log-item ${item.type}">
-                    <div class="meta"><span>${item.type}</span><span>${item.time}</span></div>
+                    <div class="meta" style="font-size:12px; color:#666;"><span>${item.type}</span><span>${item.time}</span></div>
                     <div><strong>${item.incomingNumber}</strong><p>${item.content || ''}</p></div>
                 </div>
             `).join('');
         }
 
-        function stopPolling() {
-            localStorage.clear();
-            location.reload();
-        }
+        function stopPolling() { localStorage.clear(); location.reload(); }
     </script>
 </body>
 </html>
