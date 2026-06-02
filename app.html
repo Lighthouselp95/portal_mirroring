@@ -1,224 +1,62 @@
 <!DOCTYPE html>
 <html lang="vi">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mirror Portal</title>
     <style>
-        /* Giao diện tối giản phẳng đen/trắng */
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-            background: #ffffff;
-            padding: 20px;
-            margin: 0;
-            font-size: 16px;
-            color: #1a1a1a;
-            box-sizing: border-box;
-        }
-
-        /* Thêm class này vào style */
-        .initial-hidden {
-            display: none !important;
-        }
-
-        /* Bố cục chia 2 cột khi đã đăng nhập thành công */
-        .main-container {
-            display: grid;
-            grid-template-columns: 300px 1fr;
-            gap: 24px;
-            max-width: 1600px;
-            margin: 0 auto;
-        }
-
-        /* Khung đăng nhập tập trung giữa màn hình lúc đầu */
-        .login-box {
-            max-width: 450px;
-            margin: 60px auto;
-            background: #ffffff;
-            padding: 30px;
-            border-radius: 4px;
-            border: 1px solid #e0e0e0;
-        }
-
-        /* Cột cấu hình bên trái */
-        .config-box {
-            background: #ffffff;
-            padding: 20px;
-            border-radius: 4px;
-            border: 1px solid #e0e0e0;
-            align-self: start;
-        }
-
-        /* Cột hiển thị nhật ký lớn rộng mở bên phải */
-        .log-box {
-            background: #ffffff;
-            padding: 20px;
-            border-radius: 4px;
-            border: 1px solid #e0e0e0;
-            width: 100%;
-            box-sizing: border-box;
-        }
-
-        .hidden {
-            display: none !important;
-        }
-
-        h2 {
-            font-size: 22px;
-            margin-top: 0;
-            margin-bottom: 15px;
-            color: #000000;
-            font-weight: 700;
-        }
-
-        label {
-            font-weight: 600;
-            font-size: 14px;
-            color: #333333;
-        }
-
-        input {
-            width: 100%;
-            padding: 10px 12px;
-            margin: 6px 0 16px 0;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            box-sizing: border-box;
-            font-size: 16px;
-            background-color: #ffffff;
-        }
-
-        input:focus {
-            border-color: #000000;
-            outline: none;
-        }
-
-        button {
-            width: 100%;
-            padding: 12px;
-            background: #000000;
-            color: #ffffff;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 16px;
-        }
-
-        button:hover {
-            background: #222222;
-        }
-
-        /* Danh sách dòng log mỏng tinh gọn */
-        .log-item {
-            padding: 8px 16px;
-            margin: 6px 0;
-            border-radius: 0;
-            background: #ffffff;
-            border: 1px solid #e0e0e0;
-        }
-
-        .CALL {
-            border-left: 4px solid #000000;
-            /* Cuộc gọi: Viền đen đậm */
-        }
-
-        .SMS {
-            border-left: 4px solid #888888;
-            /* Tin nhắn: Viền xám mờ */
-        }
-
-        .meta {
-            display: flex;
-            justify-content: space-between;
-            font-size: 12px;
-            color: #666666;
-            margin-bottom: 4px;
-        }
-
-        .log-target {
-            font-size: 15px;
-            font-weight: 600;
-            color: #000000;
-            display: inline-block;
-            margin-right: 10px;
-        }
-
-        .log-content {
-            margin-top: 2px;
-            font-size: 14px;
-            color: #333333;
-            line-height: 1.5;
-            word-break: break-word;
-        }
-
-        @media (max-width: 768px) {
-            .main-container {
-                grid-template-columns: 1fr;
-                gap: 16px;
-            }
-        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background: #ffffff; padding: 20px; margin: 0; font-size: 16px; color: #1a1a1a; box-sizing: border-box; }
+        .initial-hidden { display: none !important; }
+        .main-container { display: grid; grid-template-columns: 300px 1fr; gap: 24px; max-width: 1600px; margin: 0 auto; }
+        .login-box { max-width: 450px; margin: 60px auto; background: #ffffff; padding: 30px; border-radius: 4px; border: 1px solid #e0e0e0; }
+        .config-box { background: #ffffff; padding: 20px; border-radius: 4px; border: 1px solid #e0e0e0; align-self: start; }
+        .log-box { background: #ffffff; padding: 20px; border-radius: 4px; border: 1px solid #e0e0e0; width: 100%; box-sizing: border-box; }
+        input { width: 100%; padding: 10px 12px; margin: 6px 0 16px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 16px; }
+        button { width: 100%; padding: 12px; background: #000000; color: #ffffff; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .log-item { padding: 8px 16px; margin: 6px 0; border: 1px solid #e0e0e0; }
+        .CALL { border-left: 4px solid #000000; }
+        .SMS { border-left: 4px solid #888888; }
+        @media (max-width: 768px) { .main-container { grid-template-columns: 1fr; } }
     </style>
 </head>
-
 <body>
 
     <div id="login-screen" class="login-box initial-hidden">
         <h2>Đồng bộ thiết bị di động</h2>
-        <label for="phone-input">Số điện thoại thiết bị:</label>
-        <input type="text" id="phone-input" placeholder="Ví dụ: 0967684284">
-
-        <label for="token-input">Mã Token định danh bảo mật:</label>
-        <input type="text" id="token-input" placeholder="Nhập mã Token">
-
-        <p id="login-status-text" style="color: red; font-size: 13px; min-height: 18px; margin: -6px 0 10px 0;"></p>
+        <label>Số điện thoại:</label>
+        <input type="text" id="phone-input">
+        <label>Mã Token:</label>
+        <input type="text" id="token-input">
+        <p id="login-status-text" style="color: red; font-size: 13px;"></p>
         <button onclick="startPolling()">Kết nối hệ thống</button>
     </div>
 
     <div id="monitor-screen" class="main-container initial-hidden">
         <div class="config-box">
-            <h2 style="font-size: 18px;">Thiết bị đang chạy</h2>
-            <p style="font-size: 15px; font-weight: bold; margin-bottom: 4px;">SĐT: <span id="display-phone"
-                    style="color:#000;"></span></p>
-            <p id="status-text" style="color: #666666; font-size: 13px; margin-top: 0; margin-bottom: 20px;">Đang kết
-                nối...</p>
-
-            <button onclick="stopPolling()" style="background: #e74c3c; padding: 10px; font-size: 14px;">Đăng xuất /
-                Ngắt kết nối</button>
+            <h2>Thiết bị đang chạy</h2>
+            <p>SĐT: <span id="display-phone"></span></p>
+            <p id="status-text" style="font-size: 13px;">Đang kết nối...</p>
+            <button onclick="stopPolling()" style="background: #e74c3c;">Ngắt kết nối</button>
         </div>
-
         <div class="log-box">
-            <h2>Nhật ký đồng bộ hệ thống</h2>
-            <div id="log-list" style="max-height: 750px; overflow-y: auto;">
-                <p style='text-align:center; color:#999; font-size: 14px;'>Đang tải dữ liệu từ máy chủ...</p>
-            </div>
+            <h2>Nhật ký đồng bộ</h2>
+            <div id="log-list" style="max-height: 750px; overflow-y: auto;"></div>
         </div>
     </div>
 
     <script>
         let inputPhone = "";
         let inputToken = "";
-        let pollInterval = null;
 
-        if (Notification.permission !== "granted") {
-            Notification.requestPermission();
-        }
-
-        // Thay thế toàn bộ window.onload bằng logic này ngay dưới thẻ <script>
+        // IIFE: Kiểm tra đăng nhập ngay lập tức khi load trang
         (function () {
             const savedPhone = localStorage.getItem("saved_user_phone");
             const savedToken = localStorage.getItem("saved_user_token");
-
             if (savedPhone && savedToken) {
-                // Nếu có dữ liệu, hiện màn hình monitor ngay, đừng hiện login
-                document.getElementById("monitor-screen").classList.remove("initial-hidden");
-                // Gọi hàm bắt đầu luôn
                 document.getElementById("phone-input").value = savedPhone;
                 document.getElementById("token-input").value = savedToken;
                 startPolling();
             } else {
-                // Nếu không có dữ liệu, hiện màn hình login
                 document.getElementById("login-screen").classList.remove("initial-hidden");
             }
         })();
@@ -226,154 +64,66 @@
         function startPolling() {
             const phone = document.getElementById('phone-input').value.trim();
             const token = document.getElementById('token-input').value.trim();
-            const loginStatus = document.getElementById('login-status-text');
-
-            if (!phone || !token) {
-                loginStatus.innerText = "Vui lòng nhập đầy đủ SĐT và Token!";
-                return;
-            }
+            if (!phone || !token) return;
 
             inputPhone = phone;
             inputToken = token;
 
-            // Thực hiện gọi kiểm tra thử phát đầu tiên
             fetch(`/api/fetch?phone=${phone}&token=${token}`)
-                .then(response => {
-                    if (response.status === 200) return response.json();
-                    if (response.status === 403) {
-                        loginStatus.innerText = "❌ Sai mã Token bảo mật!";
-                        throw new Error("Sai Token");
-                    }
-                    loginStatus.innerText = "❌ Lỗi kết nối hệ thống (" + response.status + response.status + ")";
-                    throw new Error("Lỗi Server");
-                })
+                .then(res => res.status === 200 ? res.json() : Promise.reject())
                 .then(data => {
-                    // --- BƯỚC CHUYỂN TRANG QUAN TRỌNG ---
                     localStorage.setItem("saved_user_phone", inputPhone);
                     localStorage.setItem("saved_user_token", inputToken);
-
+                    
                     document.getElementById("display-phone").innerText = data.phone;
-                    document.getElementById("login-screen").classList.add("hidden");
-                    document.getElementById("monitor-screen").classList.remove("hidden"); // Hiện màn hình Monitor Grid
+                    document.getElementById("login-screen").classList.add("initial-hidden");
+                    document.getElementById("monitor-screen").classList.remove("initial-hidden");
 
-                    // Xử lý dữ liệu phát đầu
                     handleServerData(data);
-
-                    // --- KÍCH HOẠT ĐỒNG BỘ LIÊN TỤC (POLLING) MỖI 3 GIÂY Ngầm ---
-                    if (pollInterval) clearInterval(pollInterval);
-                    pollInterval = setInterval(syncLogs, 3000);
+                    syncLogs(); // Gọi hàm đồng bộ đệ quy
                 })
-                .catch(error => console.error("[Login Error]:", error));
+                .catch(() => {
+                    document.getElementById("login-status-text").innerText = "❌ Sai thông tin hoặc lỗi Server!";
+                    document.getElementById("login-screen").classList.remove("initial-hidden");
+                });
         }
 
         function syncLogs() {
             if (!inputPhone || !inputToken) return;
 
-            // Thêm timestamp để chống cache như đã bàn
             fetch(`/api/fetch?phone=${inputPhone}&token=${inputToken}&_=${Date.now()}`)
-                .then(res => {
-                    if (!res.ok) throw new Error("Server Error");
-                    return res.json();
-                })
+                .then(res => res.ok ? res.json() : Promise.reject())
                 .then(data => {
                     handleServerData(data);
+                    setTimeout(syncLogs, 5000); // Đợi 5s rồi gọi tiếp
                 })
-                .catch(err => {
-                    // Đừng báo lỗi đỏ ngay lập tức
-                    const statusTxt = document.getElementById("status-text");
-                    statusTxt.innerHTML = "⚠️ Kết nối chập chờn... đang thử lại.";
-                    statusTxt.style.color = "orange";
-                    console.error("Fetch failed, retrying...", err);
+                .catch(() => {
+                    document.getElementById("status-text").innerHTML = "⚠️ Mất kết nối, đang thử lại...";
+                    setTimeout(syncLogs, 8000); // Lỗi thì đợi 8s thử lại
                 });
         }
 
-        // Hàm trung gian xử lý gom mảng Calls và Sms, sắp xếp theo thời gian mới nhất
         function handleServerData(data) {
-            const statusTxt = document.getElementById("status-text");
-            statusTxt.innerHTML = "🟢 Trực tuyến: " + new Date().toLocaleTimeString();
-            statusTxt.style.color = "green";
-
-            // Gộp mảng cuộc gọi và sms lại, gắn nhãn loại log tương ứng
-            const callsWithTag = (data.calls || []).map(item => ({ ...item, type: 'CALL' }));
-            const smsWithTag = (data.sms || []).map(item => ({ ...item, type: 'SMS' }));
-
-            // Trộn tổng hợp
-            let allLogs = [...callsWithTag, ...smsWithTag];
-
-            // Sắp xếp ID lớn nhất (mới nhất) lên trên đầu
+            document.getElementById("status-text").innerHTML = "🟢 Trực tuyến: " + new Date().toLocaleTimeString();
+            let allLogs = [...(data.calls || []).map(i=>({...i, type:'CALL'})), ...(data.sms || []).map(i=>({...i, type:'SMS'}))];
             allLogs.sort((a, b) => b.id.localeCompare(a.id));
-
-            if (allLogs.length === 0) {
-                document.getElementById("log-list").innerHTML = "<p style='text-align:center; color:#999; font-size: 14px;'>Tài khoản trống (Chưa phát sinh cuộc gọi hoặc SMS nào).</p>";
-                return;
-            }
-
-            // Xử lý kiểm tra thông báo đẩy (Browser Notification) cho bản ghi mới tinh
-            const localCacheKey = `cache_${inputPhone}`;
-            const localLogs = JSON.parse(localStorage.getItem(localCacheKey)) || [];
-            const localIds = localLogs.map(item => item.id);
-
-            allLogs.forEach(sItem => {
-                // Nếu trong cache cũ chưa từng có ID này -> Bắn thông báo ra máy tính ngay
-                if (localIds.length > 0 && !localIds.includes(sItem.id)) {
-                    sendBrowserPush(sItem);
-                }
-            });
-
-            // Ghi đè bộ nhớ đệm mới để không bắn thông báo trùng lặp lần sau
-            localStorage.setItem(localCacheKey, JSON.stringify(allLogs));
-
-            // Đổ ra giao diện cột giữa
             renderLogs(allLogs);
-        }
-
-        function sendBrowserPush(item) {
-            if (Notification.permission === "granted") {
-                const title = item.type === "CALL" ? "📞 Cuộc gọi đến mới!" : "💬 Tin nhắn SMS mới!";
-                new Notification(title, {
-                    body: `Số máy: ${item.incomingNumber}\nNội dung: ${item.content || 'Đang tương tác...'}`, // Keeps it visible until clicked,
-                    silent: false,
-                    requireInteraction: true
-                });
-            }
         }
 
         function renderLogs(logs) {
             const listDiv = document.getElementById("log-list");
-            listDiv.innerHTML = "";
-
-            logs.forEach(item => {
-                const div = document.createElement("div");
-                div.className = `log-item ${item.type}`;
-
-                div.innerHTML = `
-                    <div class="meta">
-                        <span><strong>${item.type === 'CALL' ? '📞 CUỘC GỌI ĐẾN' : '💬 TIN NHẮN SMS'}</strong></span>
-                        <span>${item.time}</span>
-                    </div>
-                    <div>
-                        <span class="log-target">Đối tác: ${item.incomingNumber}</span>
-                        <p class="log-content">${item.content ? item.content : '<i>(Trống)</i>'}</p>
-                    </div>
-                `;
-                listDiv.appendChild(div);
-            });
+            listDiv.innerHTML = logs.map(item => `
+                <div class="log-item ${item.type}">
+                    <div class="meta"><span>${item.type}</span><span>${item.time}</span></div>
+                    <div><strong>${item.incomingNumber}</strong><p>${item.content || ''}</p></div>
+                </div>
+            `).join('');
         }
 
         function stopPolling() {
-            if (pollInterval) clearInterval(pollInterval);
-            localStorage.removeItem("saved_user_phone");
-            localStorage.removeItem("saved_user_token");
-
-            document.getElementById("phone-input").value = "";
-            document.getElementById("token-input").value = "";
-            document.getElementById("login-status-text").innerText = "";
-
-            document.getElementById("login-screen").style.display = "block";
-            document.getElementById("login-screen").classList.remove("hidden");
-            document.getElementById("monitor-screen").classList.add("hidden");
+            localStorage.clear();
+            location.reload();
         }
     </script>
 </body>
-
 </html>
