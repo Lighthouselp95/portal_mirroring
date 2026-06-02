@@ -232,7 +232,7 @@
                         loginStatus.innerText = "❌ Sai mã Token bảo mật!";
                         throw new Error("Sai Token");
                     }
-                    loginStatus.innerText = "❌ Lỗi kết nối hệ thống (" + response.status + ")";
+                    loginStatus.innerText = "❌ Lỗi kết nối hệ thống (" + response.status + response.status + ")";
                     throw new Error("Lỗi Server");
                 })
                 .then(data => {
