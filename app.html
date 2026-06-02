@@ -115,11 +115,13 @@
         }
 
         .CALL {
-            border-left: 4px solid #000000; /* Cuộc gọi: Viền đen đậm */
+            border-left: 4px solid #000000;
+            /* Cuộc gọi: Viền đen đậm */
         }
 
         .SMS {
-            border-left: 4px solid #888888; /* Tin nhắn: Viền xám mờ */
+            border-left: 4px solid #888888;
+            /* Tin nhắn: Viền xám mờ */
         }
 
         .meta {
@@ -172,10 +174,13 @@
     <div id="monitor-screen" class="main-container hidden">
         <div class="config-box">
             <h2 style="font-size: 18px;">Thiết bị đang chạy</h2>
-            <p style="font-size: 15px; font-weight: bold; margin-bottom: 4px;">SĐT: <span id="display-phone" style="color:#000;"></span></p>
-            <p id="status-text" style="color: #666666; font-size: 13px; margin-top: 0; margin-bottom: 20px;">Đang kết nối...</p>
-            
-            <button onclick="stopPolling()" style="background: #e74c3c; padding: 10px; font-size: 14px;">Đăng xuất / Ngắt kết nối</button>
+            <p style="font-size: 15px; font-weight: bold; margin-bottom: 4px;">SĐT: <span id="display-phone"
+                    style="color:#000;"></span></p>
+            <p id="status-text" style="color: #666666; font-size: 13px; margin-top: 0; margin-bottom: 20px;">Đang kết
+                nối...</p>
+
+            <button onclick="stopPolling()" style="background: #e74c3c; padding: 10px; font-size: 14px;">Đăng xuất /
+                Ngắt kết nối</button>
         </div>
 
         <div class="log-box">
@@ -274,7 +279,7 @@
             // Gộp mảng cuộc gọi và sms lại, gắn nhãn loại log tương ứng
             const callsWithTag = (data.calls || []).map(item => ({ ...item, type: 'CALL' }));
             const smsWithTag = (data.sms || []).map(item => ({ ...item, type: 'SMS' }));
-            
+
             // Trộn tổng hợp
             let allLogs = [...callsWithTag, ...smsWithTag];
 
@@ -309,7 +314,9 @@
             if (Notification.permission === "granted") {
                 const title = item.type === "CALL" ? "📞 Cuộc gọi đến mới!" : "💬 Tin nhắn SMS mới!";
                 new Notification(title, {
-                    body: `Số máy: ${item.incomingNumber}\nNội dung: ${item.content || 'Đang tương tác...'}`,
+                    body: `Số máy: ${item.incomingNumber}\nNội dung: ${item.content || 'Đang tương tác...'}`, // Keeps it visible until clicked,
+                    silent: false,
+                    requireInteraction: true
                 });
             }
         }
