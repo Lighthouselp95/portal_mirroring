@@ -204,29 +204,49 @@
         };
 
         function startPolling() {
-            const phoneField = document.getElementById("phone-input");
-            const tokenField = document.getElementById("token-input");
+    const phone = document.getElementById('phone-input').value.trim();
+    const token = document.getElementById('token-input').value.trim();
+    const statusText = document.getElementById('status-text');
 
-            if (!phoneField || !tokenField) return;
+    if (!phone || !token) return;
 
-            inputPhone = phoneField.value.trim();
-            inputToken = tokenField.value.trim();
-
-            if (!inputPhone || !inputToken) {
-                return alert("Vui lòng điền đầy đủ cả Số điện thoại và Token!");
+    // Tiến hành gọi API ngầm liên tục
+    fetch(`/api/fetch?phone=${phone}&token=${token}`)
+        .then(response => {
+            // Trường hợp 1: Token chuẩn, SĐT chuẩn (200 OK)
+            if (response.status === 200) {
+                return response.json();
+            }
+            
+            // Trường hợp 2: Sai mã Token bảo mật (403 Forbidden)
+            if (response.status === 403) {
+                statusText.innerHTML = "❌ <span style='color: red;'>Sai mã Token định danh! Vui lòng kiểm tra lại trên App.</span>";
+                throw new Error("Sai Token");
+            }
+            
+            // Trường hợp 3: Thiết bị chưa bấm kích hoạt trên App (440 Session Expired/Conflict)
+            if (response.status === 440) {
+                statusText.innerHTML = "⚠️ <span style='color: orange;'>Thiết bị chưa được khởi tạo. Hãy mở App và bấm 'Sinh mã Token'.</span>";
+                throw new Error("Chưa khởi tạo");
             }
 
-            localStorage.setItem("saved_user_phone", inputPhone);
-            localStorage.setItem("saved_user_token", inputToken);
-
-            document.getElementById("login-screen").style.display = "none";
-            document.getElementById("monitor-screen").classList.remove("hidden");
-            document.getElementById("display-phone").innerText = inputPhone;
-
-            if (pollInterval) clearInterval(pollInterval);
-            syncLogs();
-            pollInterval = setInterval(syncLogs, 3000);
-        }
+            // Trường hợp 4: Server dính lỗi khác (404, 500...)
+            statusText.innerHTML = "❌ <span style='color: red;'>Lỗi kết nối hệ thống (Mã lỗi: " + response.status + ")</span>";
+            throw new Error("Lỗi Server");
+        })
+        .then(data => {
+            // CẬP NHẬT TRẠNG THÁI THÀNH CÔNG VÀ IN DỮ LIỆU RA MÀN HÌNH
+            statusText.innerHTML = "🟢 <span style='color: green;'>Đang kết nối trực tuyến với thiết bị: " + data.phone + "</span>";
+            
+            // Hàm render danh sách Log của bạn (Giữ nguyên logic render cũ của bạn)
+            renderLogs(data.calls, data.sms); 
+        })
+        .catch(error => {
+            console.error("[Polling Error]:", error);
+            // Tuyệt đối không tự động chạy lệnh logout/disconnect ở đây nếu dính lỗi bảo mật 440/403
+            // để người dùng kịp đọc dòng chữ thông báo lỗi là gì.
+        });
+}
 
         function syncLogs() {
             if (!inputPhone || !inputToken) return;
