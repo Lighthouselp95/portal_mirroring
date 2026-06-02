@@ -113,7 +113,7 @@ app.post('/api/push', (req, res) => {
 app.get('/api/fetch', (req, res) => {
     const { phone, token } = req.query;
 
-    // Kiểm tra tham số đầu vào từ URL Web
+    // 1. Kiểm tra tham số đầu vào từ URL Web
     if (!phone || !token) {
         return res.status(400).json({ 
             error: "Thiếu tham số truy vấn (Yêu cầu phải có phone và token)!" 
@@ -121,37 +121,27 @@ app.get('/api/fetch', (req, res) => {
     }
 
     let db = readDatabase(); 
-    let isNewAccount = !db[phone];
+    let isAccountExist = !!db[phone]; // Kiểm tra số điện thoại này đã có trên hệ thống chưa
 
-    // ĐỐI CHIẾU & TỰ ĐỘNG KHỞI TẠO NẾU CHƯA CÓ ĐỐI TƯỢNG TRÊN SERVER
-    if (isNewAccount) {
-        console.log(`[Web Fetch - Tạo mới] Không tìm thấy đối tượng ${phone}. Đang tạo phân vùng trống...`);
-        
-        db[phone] = {
-            token: token,
-            calls: [],
-            sms: [
-                {
-                    id: "INIT_WEB_" + Date.now(),
-                    incomingNumber: "HỆ THỐNG",
-                    content: "Tài khoản được khởi tạo tự động từ giao diện kết nối Web.",
-                    time: new Date().toLocaleTimeString()
-                }
-            ]
-        };
-        writeDatabase(db);
-    } else {
-        // CƠ CHẾ ĐỒNG BỘ TIN CẬY HOÀN TOÀN (TỐI ƯU):
-        // Nếu trên Web nhập mã Token mới (hoặc Web lưu cấu hình cũ nhưng Server Render vừa reset mất file json),
-        // Server sẽ tự động cập nhật đè Token mới từ Web lên để hai bên luôn khớp lệnh, tránh lỗi 403.
-        if (db[phone].token !== token) {
-            console.log(`[Web Fetch - Đồng bộ Token] Số ${phone} cập nhật lại mã Token theo Web: ${token}`);
-            db[phone].token = token;
-            writeDatabase(db);
-        }
+    // LỰC LƯỢNG BẢO VỆ 1: Nếu tài khoản CHƯA TỒN TẠI (Chưa từng bật App kích hoạt)
+    if (!isAccountExist) {
+        console.log(`[Bảo mật Fetch] Số điện thoại ${phone} chưa từng được kích hoạt từ App.`);
+        return res.status(440).json({ 
+            error: "Thiết bị chưa được kích hoạt ngầm! Vui lòng mở App trên điện thoại và bấm kích hoạt trước." 
+        });
     }
 
-    // Trả về dữ liệu sạch cô lập duy nhất của số điện thoại này
+    // LỰC LƯỢNG BẢO VỆ 2: Tài khoản ĐÃ CÓ, tiến hành đối chiếu Token Web gửi lên với Token gốc của App
+    if (db[phone].token !== token) {
+        console.log(`[Bảo mật Fetch] Thiết bị ${phone} nhập sai mã Token trên Web. (Nhập: ${token} | Đúng là: ${db[phone].token})`);
+        
+        // TRẢ VỀ LỖI 403: Chặn đứng không cho vào giao diện chính
+        return res.status(403).json({ 
+            error: "Sai mã Token định danh bảo mật! Vui lòng kiểm tra lại trên thiết bị." 
+        });
+    }
+
+    // ĐÁP ỨNG THÀNH CÔNG: Nếu vượt qua cả 2 lớp bảo vệ trên
     const accountData = db[phone];
 
     return res.status(200).json({
