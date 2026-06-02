@@ -17,6 +17,11 @@
             box-sizing: border-box;
         }
 
+        /* Thêm class này vào style */
+        .initial-hidden {
+            display: none !important;
+        }
+
         /* Bố cục chia 2 cột khi đã đăng nhập thành công */
         .main-container {
             display: grid;
@@ -159,7 +164,7 @@
 
 <body>
 
-    <div id="login-screen" class="login-box">
+    <div id="login-screen" class="login-box initial-hidden">
         <h2>Đồng bộ thiết bị di động</h2>
         <label for="phone-input">Số điện thoại thiết bị:</label>
         <input type="text" id="phone-input" placeholder="Ví dụ: 0967684284">
@@ -171,7 +176,7 @@
         <button onclick="startPolling()">Kết nối hệ thống</button>
     </div>
 
-    <div id="monitor-screen" class="main-container hidden">
+    <div id="monitor-screen" class="main-container initial-hidden">
         <div class="config-box">
             <h2 style="font-size: 18px;">Thiết bị đang chạy</h2>
             <p style="font-size: 15px; font-weight: bold; margin-bottom: 4px;">SĐT: <span id="display-phone"
@@ -200,16 +205,23 @@
             Notification.requestPermission();
         }
 
-        window.onload = function () {
+        // Thay thế toàn bộ window.onload bằng logic này ngay dưới thẻ <script>
+        (function () {
             const savedPhone = localStorage.getItem("saved_user_phone");
             const savedToken = localStorage.getItem("saved_user_token");
 
             if (savedPhone && savedToken) {
+                // Nếu có dữ liệu, hiện màn hình monitor ngay, đừng hiện login
+                document.getElementById("monitor-screen").classList.remove("initial-hidden");
+                // Gọi hàm bắt đầu luôn
                 document.getElementById("phone-input").value = savedPhone;
                 document.getElementById("token-input").value = savedToken;
                 startPolling();
+            } else {
+                // Nếu không có dữ liệu, hiện màn hình login
+                document.getElementById("login-screen").classList.remove("initial-hidden");
             }
-        };
+        })();
 
         function startPolling() {
             const phone = document.getElementById('phone-input').value.trim();
