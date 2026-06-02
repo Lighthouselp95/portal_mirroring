@@ -61,6 +61,7 @@
 
     <script>
         let inputPhone = "", inputToken = "", latestId = "";
+        let pollingTimer = null;
 
         if ("Notification" in window && Notification.permission !== "granted") {
             Notification.requestPermission();
@@ -85,6 +86,10 @@
 
             if ("Notification" in window) Notification.requestPermission();
 
+            // Khi chủ động kết nối (hoặc đổi số), reset lại mốc ID để tránh lệch dòng dữ liệu số cũ
+            latestId = ""; 
+            if (pollingTimer) clearTimeout(pollingTimer);
+
             fetch(`/api/fetch?phone=${inputPhone}&token=${inputToken}&lastId=`)
                 .then(res => res.status === 200 ? res.json() : Promise.reject("Sai thông tin hoặc lỗi Server!"))
                 .then(data => {
@@ -102,7 +107,7 @@
                     }
 
                     handleServerData(data);
-                    setTimeout(syncLogs, 3000); 
+                    pollingTimer = setTimeout(syncLogs, 3000); 
                 })
                 .catch(err => {
                     document.getElementById("login-status-text").innerText = `❌ ${err}`;
@@ -126,11 +131,11 @@
                     if(all.length > 0) latestId = all[0].id;
                     
                     handleServerData(data);
-                    setTimeout(syncLogs, 3000); 
+                    pollingTimer = setTimeout(syncLogs, 3000); 
                 })
                 .catch(() => {
                     document.getElementById("status-text").innerHTML = "⚠️ Mất kết nối, đang thử lại...";
-                    setTimeout(syncLogs, 8000);
+                    pollingTimer = setTimeout(syncLogs, 8000);
                 });
         }
 
@@ -148,7 +153,7 @@
                         body: `Số: ${item.incomingNumber}\nNội dung: ${item.content || '...'}`
                     });
                 } catch (e) {
-                    console.error("Lỗi Notification:", e);
+                    console.error("Trình duyệt chặn khởi tạo trực tiếp trên Main Thread:", e);
                 }
             }
         }
@@ -157,19 +162,15 @@
             const listDiv = document.getElementById("log-list");
             const template = document.getElementById("log-template");
             
-            // Xóa danh sách cũ trước khi render lại
             listDiv.innerHTML = "";
 
             logs.forEach(item => {
-                // Clone cấu trúc HTML từ thẻ template gốc
                 const clone = template.content.cloneNode(true);
                 const itemDiv = clone.querySelector('.log-item');
 
-                // Thêm các class tương ứng
                 itemDiv.classList.add(item.type);
                 if (item.isNew) itemDiv.classList.add('new-item');
 
-                // Đổ dữ liệu vào các thẻ con
                 clone.querySelector('.txt-type').innerText = item.type;
                 clone.querySelector('.txt-time').innerText = item.time;
                 clone.querySelector('.txt-number').innerText = item.incomingNumber;
@@ -180,7 +181,11 @@
         }
 
         function stopPolling() {
-            location.reload(); 
+            if (pollingTimer) clearTimeout(pollingTimer);
+            // Giữ nguyên dữ liệu trong ô input và localStorage, chỉ ngắt luồng hiển thị
+            document.getElementById("monitor-screen").classList.add("initial-hidden");
+            document.getElementById("login-screen").classList.remove("initial-hidden");
+            document.getElementById("status-text").innerHTML = "🔴 Đã ngắt kết nối.";
         }
     </script>
 </body>
