@@ -74,7 +74,6 @@ app.post('/api/push', (req, res) => {
         return res.status(400).json({ error: "Thiếu số điện thoại đối tác gửi đến!" });
     }
 
-    // const logId = type.toUpperCase() + "_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
     const logId = Date.now() + "_" + type.toUpperCase() + "_" + Math.floor(Math.random() * 1000);
     const newLogItem = {
         id: logId,
@@ -103,7 +102,6 @@ app.get('/api/fetch', (req, res) => {
 
     const accountData = db[phone];
 
-    // Trả dữ liệu về, so sánh trực tiếp chuỗi ID thời gian để xác định thuộc tính isNew
     return res.status(200).json({
         phone: phone,
         calls: (accountData.calls || []).map(item => ({

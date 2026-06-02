@@ -77,14 +77,10 @@
 
         .log-item {
             padding: 12px 16px;
-            /* Tăng đệm bên trong cho thông tin thoáng hơn */
             margin: 16px 0;
-            /* SỬA TẠI ĐÂY: Tăng khoảng cách giữa các dòng thông báo lên 16px */
             border: 1px solid #e0e0e0;
             border-radius: 6px;
-            /* Thêm bo góc nhẹ cho các ô thông báo đẹp hơn */
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
-            /* Đổ bóng mờ để các ô tách biệt rõ ràng */
             background: #ffffff;
         }
 
@@ -181,7 +177,6 @@
 
             if ("Notification" in window) Notification.requestPermission();
 
-            // Khi chủ động kết nối (hoặc đổi số), reset lại mốc ID để tránh lệch dòng dữ liệu số cũ
             latestId = "";
             if (pollingTimer) clearTimeout(pollingTimer);
 
@@ -196,10 +191,7 @@
                     document.getElementById("monitor-screen").classList.remove("initial-hidden");
 
                     let all = [...(data.calls || []), ...(data.sms || [])];
-                    // Tìm đoạn này trong hàm startPolling() của app.html và sửa lại dấu so sánh của localeCompare hoặc đảo vị trí:
                     if (all.length > 0) {
-                        // Sửa b.id.localeCompare(a.id) thành a.id.localeCompare(b.id) nếu muốn ID lớn nhất đứng đầu, 
-                        // hoặc đơn giản là dùng công thức chuẩn trị chuỗi số dưới đây:
                         all.sort((a, b) => b.id.localeCompare(a.id));
                         latestId = all[0].id;
                     }
@@ -248,7 +240,7 @@
             if ("Notification" in window && Notification.permission === "granted") {
                 try {
                     new Notification(item.type === 'CALL' ? "📞 Cuộc gọi mới" : "💬 Tin nhắn mới", {
-                        body: `Số: ${item.incomingNumber}\nNội dung: ${item.content || '...'}`, // Keeps it visible until clicked,
+                        body: `Số: ${item.incomingNumber}\nNội dung: ${item.content || '...'}`,
                         silent: false,
                         requireInteraction: true
                     });
@@ -281,18 +273,10 @@
         }
 
         function stopPolling() {
-            // 1. Dừng ngay lập tức vòng lặp fetch ngầm (3000ms)
             if (pollingTimer) clearTimeout(pollingTimer);
-
-            // 2. Xóa sạch thông tin SĐT và Token lưu trong bộ nhớ trình duyệt (Đăng xuất hẳn)
             localStorage.removeItem("saved_user_phone");
             localStorage.removeItem("saved_user_token");
-
-            // 3. Reset các biến tạm trong RAM về rỗng (đảm bảo an toàn dữ liệu)
             latestId = "";
-
-            // 4. Ẩn màn hình giám sát, hiện lại màn hình đăng nhập 
-            // (Các ô input "Số điện thoại" và "Mã Token" vẫn giữ nguyên chữ bạn đã nhập trước đó)
             document.getElementById("monitor-screen").classList.add("initial-hidden");
             document.getElementById("login-screen").classList.remove("initial-hidden");
             document.getElementById("status-text").innerHTML = "🔴 Đã ngắt kết nối và đăng xuất.";
