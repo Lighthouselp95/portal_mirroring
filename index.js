@@ -1,159 +1,187 @@
-const express = require('express');
-const fs = require('fs');
-const path = require('path');
-const cors = require('cors');
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mirror Portal</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background: #ffffff; padding: 20px; margin: 0; font-size: 16px; color: #1a1a1a; box-sizing: border-box; }
+        .initial-hidden { display: none !important; }
+        .main-container { display: grid; grid-template-columns: 300px 1fr; gap: 24px; max-width: 1600px; margin: 0 auto; }
+        .login-box { max-width: 450px; margin: 60px auto; background: #ffffff; padding: 30px; border-radius: 4px; border: 1px solid #e0e0e0; }
+        .config-box { background: #ffffff; padding: 20px; border-radius: 4px; border: 1px solid #e0e0e0; align-self: start; }
+        .log-box { background: #ffffff; padding: 20px; border-radius: 4px; border: 1px solid #e0e0e0; width: 100%; box-sizing: border-box; }
+        input { width: 100%; padding: 10px 12px; margin: 6px 0 16px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 16px; }
+        button { width: 100%; padding: 12px; background: #000000; color: #ffffff; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .log-item { padding: 8px 16px; margin: 6px 0; border: 1px solid #e0e0e0; }
+        .new-item { background-color: #fff6e5; border: 1px solid #f90; }
+        .CALL { border-left: 4px solid #000000; }
+        .SMS { border-left: 4px solid #888888; }
+        .meta { font-size: 12px; color: #666; display: flex; justify-content: space-between; }
+        @media (max-width: 768px) { .main-container { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
 
-const app = express();
-app.use(cors());
-app.use(express.json());
+    <template id="log-template">
+        <div class="log-item">
+            <div class="meta">
+                <span class="txt-type"></span>
+                <span class="txt-time"></span>
+            </div>
+            <div>
+                <strong class="txt-number"></strong>
+                <p class="txt-content" style="margin: 4px 0 0 0;"></p>
+            </div>
+        </div>
+    </template>
 
-// Đường dẫn lưu trữ file cơ sở dữ liệu JSON tổng
-const DB_FILE = path.join(__dirname, 'all_logs.json');
+    <div id="login-screen" class="login-box initial-hidden">
+        <h2>Đồng bộ thiết bị</h2>
+        <label>Số điện thoại:</label>
+        <input type="text" id="phone-input">
+        <label>Mã Token:</label>
+        <input type="text" id="token-input">
+        <p id="login-status-text" style="color: red; font-size: 13px;"></p>
+        <button onclick="startPolling()">Kết nối hệ thống</button>
+    </div>
 
-// --- HÀM TIỆN ÍCH ĐỌC/GHI ĐĨA CỨNG ---
-function readDatabase() {
-    try {
-        if (!fs.existsSync(DB_FILE)) {
-            fs.writeFileSync(DB_FILE, JSON.stringify({}));
-            return {};
+    <div id="monitor-screen" class="main-container initial-hidden">
+        <div class="config-box">
+            <h2>Thiết bị đang chạy</h2>
+            <p>SĐT: <span id="display-phone"></span></p>
+            <p id="status-text" style="font-size: 13px;">Đang kết nối...</p>
+            <button onclick="stopPolling()" style="background: #e74c3c;">Ngắt kết nối</button>
+        </div>
+        <div class="log-box">
+            <h2>Nhật ký đồng bộ</h2>
+            <div id="log-list" style="max-height: 750px; overflow-y: auto;"></div>
+        </div>
+    </div>
+
+    <script>
+        let inputPhone = "", inputToken = "", latestId = "";
+
+        if ("Notification" in window && Notification.permission !== "granted") {
+            Notification.requestPermission();
         }
-        const data = fs.readFileSync(DB_FILE, 'utf8');
-        return data.trim() ? JSON.parse(data) : {};
-    } catch (error) {
-        console.error("Lỗi đọc file database:", error);
-        return {};
-    }
-}
 
-function writeDatabase(data) {
-    try {
-        fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 4), 'utf8');
-    } catch (error) {
-        console.error("Lỗi ghi file database:", error);
-    }
-}
+        (function () {
+            const savedPhone = localStorage.getItem("saved_user_phone");
+            const savedToken = localStorage.getItem("saved_user_token");
+            if (savedPhone && savedToken) {
+                document.getElementById("phone-input").value = savedPhone;
+                document.getElementById("token-input").value = savedToken;
+                startPolling();
+            } else {
+                document.getElementById("login-screen").classList.remove("initial-hidden");
+            }
+        })();
 
-// Trả file giao diện quản trị điều khiển về khi truy cập trang chủ
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'app.html'));
-});
+        function startPolling() {
+            inputPhone = document.getElementById('phone-input').value.trim();
+            inputToken = document.getElementById('token-input').value.trim();
+            if (!inputPhone || !inputToken) return;
 
-/**
- * 1. API NHẬN REQUEST ĐẨY LÊN TỪ APP MOBILE (POST)
- * Nơi App di động gửi INIT, CALL ngầm, hoặc tin nhắn SMS sang
- */
-app.post('/api/push', (req, res) => {
-    const { myPhoneNumber, token, type, incomingNumber, content, time } = req.body;
+            if ("Notification" in window) Notification.requestPermission();
 
-    // Kiểm tra thông tin cốt lõi bắt buộc
-    if (!myPhoneNumber || !token || !type) {
-        return res.status(400).json({ error: "Thiếu thông tin định danh (SĐT hoặc Token)!" });
-    }
+            fetch(`/api/fetch?phone=${inputPhone}&token=${inputToken}&lastId=`)
+                .then(res => res.status === 200 ? res.json() : Promise.reject("Sai thông tin hoặc lỗi Server!"))
+                .then(data => {
+                    localStorage.setItem("saved_user_phone", inputPhone);
+                    localStorage.setItem("saved_user_token", inputToken);
+                    
+                    document.getElementById("display-phone").innerText = data.phone;
+                    document.getElementById("login-screen").classList.add("initial-hidden");
+                    document.getElementById("monitor-screen").classList.remove("initial-hidden");
 
-    const db = readDatabase();
-    const isNewAccount = !db[myPhoneNumber];
+                    let all = [...(data.calls || []), ...(data.sms || [])];
+                    if(all.length > 0) {
+                        all.sort((a, b) => b.id.localeCompare(a.id));
+                        latestId = all[0].id;
+                    }
 
-    // KIỂM TRA & KHỞI TẠO HỒ SƠ TỪ MOBILE
-    if (isNewAccount) {
-        db[myPhoneNumber] = {
-            token: token,
-            calls: [],
-            sms: []
-        };
-        console.log(`[App Push - Khởi tạo] Tạo hồ sơ gốc tự động cho số: ${myPhoneNumber}`);
-    } else {
-        // Nếu tài khoản đã có sẵn nhưng app đổi mã Token mới (Ví dụ: người dùng bấm Sinh mã mới)
-        if (db[myPhoneNumber].token !== token) {
-            console.log(`[App Push - Cập nhật] Số ${myPhoneNumber} cập nhật mã Token mới từ thiết bị: ${token}`);
-            db[myPhoneNumber].token = token;
+                    handleServerData(data);
+                    setTimeout(syncLogs, 3000); 
+                })
+                .catch(err => {
+                    document.getElementById("login-status-text").innerText = `❌ ${err}`;
+                    document.getElementById("login-screen").classList.remove("initial-hidden");
+                });
         }
-    }
 
-    // XỬ LÝ RIÊNG CHO LỆNH KHỞI TẠO TỰ ĐỘNG (INIT) CỦA APP
-    if (type.toUpperCase() === 'INIT') {
-        const logId = "INIT_" + Date.now();
-        db[myPhoneNumber].sms.push({
-            id: logId,
-            incomingNumber: incomingNumber || "HỆ THỐNG",
-            content: content || "Thiết bị kết nối ngầm thành công.",
-            time: time || new Date().toLocaleTimeString()
-        });
-        
-        writeDatabase(db);
-        return res.status(200).json({ status: "Success", message: "Đã kích hoạt tài khoản trực tuyến từ xa thành công." });
-    }
+        function syncLogs() {
+            fetch(`/api/fetch?phone=${inputPhone}&token=${inputToken}&lastId=${latestId}&_=${Date.now()}`)
+                .then(res => res.ok ? res.json() : Promise.reject())
+                .then(data => {
+                    let all = [...(data.calls || []).map(i=>({...i, type:'CALL'})), ...(data.sms || []).map(i=>({...i, type:'SMS'}))];
+                    all.sort((a, b) => b.id.localeCompare(a.id));
 
-    // XỬ LÝ CHO CÁC LOG CUỘC GỌI / SMS THỰC TẾ ĐẨY LÊN SAU NÀY
-    if (!incomingNumber) {
-        return res.status(400).json({ error: "Thiếu số điện thoại đối tác gửi đến!" });
-    }
+                    all.forEach(item => {
+                        if (item.isNew) {
+                            sendBrowserNotification(item);
+                        }
+                    });
 
-    const logId = type.toUpperCase() + "_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
-    const newLogItem = {
-        id: logId,
-        incomingNumber: incomingNumber,
-        content: content || "",
-        time: time || new Date().toLocaleTimeString()
-    };
+                    if(all.length > 0) latestId = all[0].id;
+                    
+                    handleServerData(data);
+                    setTimeout(syncLogs, 3000); 
+                })
+                .catch(() => {
+                    document.getElementById("status-text").innerHTML = "⚠️ Mất kết nối, đang thử lại...";
+                    setTimeout(syncLogs, 8000);
+                });
+        }
 
-    if (type.toUpperCase() === 'CALL') {
-        db[myPhoneNumber].calls.push(newLogItem);
-    } else if (type.toUpperCase() === 'SMS') {
-        db[myPhoneNumber].sms.push(newLogItem);
-    }
+        function handleServerData(data) {
+            document.getElementById("status-text").innerHTML = "🟢 Trực tuyến: " + new Date().toLocaleTimeString();
+            let allLogs = [...(data.calls || []).map(i=>({...i, type:'CALL'})), ...(data.sms || []).map(i=>({...i, type:'SMS'}))];
+            allLogs.sort((a, b) => b.id.localeCompare(a.id));
+            renderLogs(allLogs);
+        }
 
-    writeDatabase(db);
-    return res.status(200).json({ status: "Success", message: "Đã đồng bộ dữ liệu thành công." });
-});
+        function sendBrowserNotification(item) {
+            if ("Notification" in window && Notification.permission === "granted") {
+                try {
+                    new Notification(item.type === 'CALL' ? "📞 Cuộc gọi mới" : "💬 Tin nhắn mới", {
+                        body: `Số: ${item.incomingNumber}\nNội dung: ${item.content || '...'}`
+                    });
+                } catch (e) {
+                    console.error("Lỗi Notification:", e);
+                }
+            }
+        }
 
-/**
- * 2. API TRẢ DỮ LIỆU VỀ CHO GIAO DIỆN WEB POLLING (GET)
- * Đã tối ưu cơ chế tự động đối chiếu: Chưa có đối tượng thì tự tạo, khác Token tự cập nhật đè.
- */
-app.get('/api/fetch', (req, res) => {
-    const { phone, token } = req.query;
+        function renderLogs(logs) {
+            const listDiv = document.getElementById("log-list");
+            const template = document.getElementById("log-template");
+            
+            // Xóa danh sách cũ trước khi render lại
+            listDiv.innerHTML = "";
 
-    // 1. Kiểm tra tham số đầu vào từ URL Web
-    if (!phone || !token) {
-        return res.status(400).json({ 
-            error: "Thiếu tham số truy vấn (Yêu cầu phải có phone và token)!" 
-        });
-    }
+            logs.forEach(item => {
+                // Clone cấu trúc HTML từ thẻ template gốc
+                const clone = template.content.cloneNode(true);
+                const itemDiv = clone.querySelector('.log-item');
 
-    let db = readDatabase(); 
-    let isAccountExist = !!db[phone]; // Kiểm tra số điện thoại này đã có trên hệ thống chưa
+                // Thêm các class tương ứng
+                itemDiv.classList.add(item.type);
+                if (item.isNew) itemDiv.classList.add('new-item');
 
-    // LỰC LƯỢNG BẢO VỆ 1: Nếu tài khoản CHƯA TỒN TẠI (Chưa từng bật App kích hoạt)
-    if (!isAccountExist) {
-        console.log(`[Bảo mật Fetch] Số điện thoại ${phone} chưa từng được kích hoạt từ App.`);
-        return res.status(440).json({ 
-            error: "Thiết bị chưa được kích hoạt ngầm! Vui lòng mở App trên điện thoại và bấm kích hoạt trước." 
-        });
-    }
+                // Đổ dữ liệu vào các thẻ con
+                clone.querySelector('.txt-type').innerText = item.type;
+                clone.querySelector('.txt-time').innerText = item.time;
+                clone.querySelector('.txt-number').innerText = item.incomingNumber;
+                clone.querySelector('.txt-content').innerText = item.content || '';
 
-    // LỰC LƯỢNG BẢO VỆ 2: Tài khoản ĐÃ CÓ, tiến hành đối chiếu Token Web gửi lên với Token gốc của App
-    if (db[phone].token !== token) {
-        console.log(`[Bảo mật Fetch] Thiết bị ${phone} nhập sai mã Token trên Web. (Nhập: ${token} | Đúng là: ${db[phone].token})`);
-        
-        // TRẢ VỀ LỖI 403: Chặn đứng không cho vào giao diện chính
-        return res.status(403).json({ 
-            error: "Sai mã Token định danh bảo mật! Vui lòng kiểm tra lại trên thiết bị." 
-        });
-    }
+                listDiv.appendChild(clone);
+            });
+        }
 
-    // ĐÁP ỨNG THÀNH CÔNG: Nếu vượt qua cả 2 lớp bảo vệ trên
-    const accountData = db[phone];
-
-    return res.status(200).json({
-        status: "Success",
-        phone: phone,
-        calls: accountData.calls || [],
-        sms: accountData.sms || []
-    });
-});
-
-// Cấu hình cổng chạy tương thích tuyệt đối với Cloud Render / VPS
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`=== SERVER GƯƠNG CHIẾU INFORMINI ĐANG CHẠY TẠI PORT: ${PORT} ===`);
-});
+        function stopPolling() {
+            location.reload(); 
+        }
+    </script>
+</body>
+</html>
