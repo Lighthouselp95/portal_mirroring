@@ -76,12 +76,17 @@
         }
 
         .log-item {
-            padding: 12px 16px;
-            margin: 16px 0;
+            padding: 8px 12px;
+            /* GIẢM TỪ 12px 16px xuống: Giúp ô lùn và gọn hơn */
+            margin: 8px 0;
+            /* GIẢM TỪ 16px xuống 8px: Thu hẹp khoảng cách giữa các thông báo */
             border: 1px solid #e0e0e0;
-            border-radius: 6px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+            border-radius: 4px;
+            /* Giảm bo góc một chút cho hợp kích thước nhỏ */
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
             background: #ffffff;
+            font-size: 14px;
+            /* THÊM DÒNG NÀY: Giảm cỡ chữ của nội dung thông báo xuống một tí */
         }
 
         .new-item {
@@ -98,10 +103,18 @@
         }
 
         .meta {
-            font-size: 12px;
+            font-size: 11px;
+            /* GIẢM TỪ 12px xuống 11px */
             color: #666;
             display: flex;
             justify-content: space-between;
+            margin-bottom: 2px;
+            /* THÊM DÒNG NÀY: Thu hẹp khoảng cách với dòng số điện thoại */
+        }
+
+        /* THÊM ĐOẠN NÀY: Thu nhỏ chữ Số điện thoại/HỆ THỐNG */
+        .log-item strong.txt-number {
+            font-size: 14px;
         }
 
         @media (max-width: 768px) {
