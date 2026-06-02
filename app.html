@@ -75,18 +75,15 @@
             font-weight: bold;
         }
 
+        /* Thẻ thông báo nhỏ gọn tinh chỉnh CSS */
         .log-item {
             padding: 8px 12px;
-            /* GIẢM TỪ 12px 16px xuống: Giúp ô lùn và gọn hơn */
             margin: 8px 0;
-            /* GIẢM TỪ 16px xuống 8px: Thu hẹp khoảng cách giữa các thông báo */
             border: 1px solid #e0e0e0;
             border-radius: 4px;
-            /* Giảm bo góc một chút cho hợp kích thước nhỏ */
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
             background: #ffffff;
             font-size: 14px;
-            /* THÊM DÒNG NÀY: Giảm cỡ chữ của nội dung thông báo xuống một tí */
         }
 
         .new-item {
@@ -104,15 +101,12 @@
 
         .meta {
             font-size: 11px;
-            /* GIẢM TỪ 12px xuống 11px */
             color: #666;
             display: flex;
             justify-content: space-between;
             margin-bottom: 2px;
-            /* THÊM DÒNG NÀY: Thu hẹp khoảng cách với dòng số điện thoại */
         }
 
-        /* THÊM ĐOẠN NÀY: Thu nhỏ chữ Số điện thoại/HỆ THỐNG */
         .log-item strong.txt-number {
             font-size: 14px;
         }
@@ -164,13 +158,18 @@
     </div>
 
     <script>
-        let inputPhone = "", inputToken = "", latestId = "";
+        let inputPhone = "", inputToken = "";
         let pollingTimer = null;
+        
+        // Mảng chứa danh sách ID tin nhắn mới kích hoạt bôi vàng trên UI chu kỳ hiện tại
+        let sessionNewIds = new Set(); 
 
+        // Khởi tạo quyền Notification hệ thống ngay khi load trang
         if ("Notification" in window && Notification.permission !== "granted") {
             Notification.requestPermission();
         }
 
+        // Tự động khôi phục phiên làm việc cũ nếu có dữ liệu lưu trữ
         (function () {
             const savedPhone = localStorage.getItem("saved_user_phone");
             const savedToken = localStorage.getItem("saved_user_token");
@@ -183,16 +182,40 @@
             }
         })();
 
+        /**
+         * LẤY CƠ SỞ DỮ LIỆU LOCAL DATABASE
+         * Mỗi tài khoản số điện thoại sẽ sở hữu một phân vùng DB danh sách ID riêng biệt
+         */
+        function getLocalDB() {
+            const dbKey = `db_known_ids_${inputPhone}`;
+            const rawData = localStorage.getItem(dbKey);
+            return rawData ? JSON.parse(rawData) : [];
+        }
+
+        /**
+         * CẬP NHẬT/LƯU TRỮ THÊM MẢNG ID VÀO LOCAL DATABASE
+         */
+        function saveToLocalDB(idArray) {
+            const dbKey = `db_known_ids_${inputPhone}`;
+            let currentDB = getLocalDB();
+            // Trộn mảng cũ và mảng mới, loại bỏ ID trùng lặp để tối ưu dung lượng bộ nhớ
+            let updatedDB = Array.from(new Set([...currentDB, ...idArray]));
+            localStorage.setItem(dbKey, JSON.stringify(updatedDB));
+        }
+
+        /**
+         * HÀM ĐĂNG NHẬP / KẾT NỐI ĐẦU TIÊN
+         */
         function startPolling() {
             inputPhone = document.getElementById('phone-input').value.trim();
             inputToken = document.getElementById('token-input').value.trim();
             if (!inputPhone || !inputToken) return;
 
             if ("Notification" in window) Notification.requestPermission();
-
-            latestId = "";
             if (pollingTimer) clearTimeout(pollingTimer);
+            sessionNewIds.clear();
 
+            // Lần đầu tiên fetch tải dữ liệu, truyền lastId rỗng để lấy dữ liệu quá khứ từ Server
             fetch(`/api/fetch?phone=${inputPhone}&token=${inputToken}&lastId=`)
                 .then(res => res.status === 200 ? res.json() : Promise.reject("Sai thông tin hoặc lỗi Server!"))
                 .then(data => {
@@ -203,21 +226,19 @@
                     document.getElementById("login-screen").classList.add("initial-hidden");
                     document.getElementById("monitor-screen").classList.remove("initial-hidden");
 
+                    // Gộp toàn bộ lịch sử cuộc gọi và SMS từ server trả về
                     let all = [...(data.calls || []), ...(data.sms || [])];
-                    if (all.length > 0) {
-                        // Lọc bỏ tin nhắn INIT, chỉ lấy các tin có số timestamp ở đầu để tìm mốc chặn ban đầu
-                        let validItems = all.filter(item => !item.id.startsWith("INIT_"));
-                        if (validItems.length > 0) {
-                            let maxNumericId = Math.max(...validItems.map(item => parseInt(item.id.split('_')[0]) || 0));
-                            let maxItem = validItems.find(item => item.id.startsWith(maxNumericId.toString()));
-                            if (maxItem) latestId = maxItem.id;
-                        } else {
-                            // Nếu danh sách chỉ có mỗi tin INIT thì lấy luôn tin đó làm mốc chặn
-                            all.sort((a, b) => b.id.localeCompare(a.id));
-                            latestId = all[0].id;
-                        }
-                    }
+                    
+                    // Lấy ra danh sách toàn bộ ID cũ này
+                    let allIds = all.map(item => item.id);
+
+                    // CHẶN THÔNG BÁO LẦN ĐẦU: Lưu toàn bộ ID này vào Database Local xem như tin cũ lịch sử
+                    saveToLocalDB(allIds);
+
+                    // Render giao diện (Tất cả hiển thị màu trắng bình thường vì thuộc về quá khứ)
                     handleServerData(data);
+                    
+                    // Kích hoạt vòng lặp chạy ngầm đồng bộ sau 3 giây
                     pollingTimer = setTimeout(syncLogs, 3000);
                 })
                 .catch(err => {
@@ -226,41 +247,43 @@
                 });
         }
 
+        /**
+         * VÒNG LẶP ĐỒNG BỘ ĐỊNH KỲ (MỖI 4 GIÂY)
+         */
         function syncLogs() {
-            fetch(`/api/fetch?phone=${inputPhone}&token=${inputToken}&lastId=${latestId}&_=${Date.now()}`)
+            // Luôn gọi API fetch toàn bộ tin để đối chiếu cục bộ với Local Database 
+            fetch(`/api/fetch?phone=${inputPhone}&token=${inputToken}&lastId=&_=${Date.now()}`)
                 .then(res => res.ok ? res.json() : Promise.reject())
                 .then(data => {
                     let all = [...(data.calls || []).map(i => ({ ...i, type: 'CALL' })), ...(data.sms || []).map(i => ({ ...i, type: 'SMS' }))];
+                    
+                    // Tải danh sách ID đã biết từ Database Local lên để làm mốc đối chiếu
+                    let knownIds = new Set(getLocalDB());
+                    let newlyDetectedIds = [];
 
-                    let currentLatestTimestamp = latestId.startsWith("INIT_") ? 0 : (parseInt(latestId.split('_')[0]) || 0);
-
-                    // 1. Phát thông báo Chrome cho phần tử mới xuất hiện
                     all.forEach(item => {
-                        if (!item.id.startsWith("INIT_")) {
-                            let itemTimestamp = parseInt(item.id.split('_')[0]) || 0;
-                            // Điều kiện tiên quyết: Phải có mốc cũ và timestamp tin mới phải lớn hơn mốc cũ
-                            if (currentLatestTimestamp > 0 && itemTimestamp > currentLatestTimestamp) {
-                                sendBrowserNotification(item);
-                            }
+                        // Bỏ qua không xử lý tin nhắn mồi hệ thống INIT
+                        if (item.id.startsWith("INIT_")) return;
+
+                        // KIỂM TRA DATABASE LOCAL: Nếu ID chưa từng xuất hiện trong máy Client!
+                        if (!knownIds.has(item.id)) {
+                            // 1. Kích hoạt thông báo đẩy của trình duyệt Chrome lập tức
+                            sendBrowserNotification(item);
+                            
+                            // 2. Điền tên vào danh sách bôi vàng trên UI và danh sách lưu Database
+                            sessionNewIds.add(item.id);
+                            newlyDetectedIds.push(item.id);
                         }
                     });
 
-                    // 2. Cập nhật mốc chặn latestId lớn nhất cho chu kỳ sau
-                    if (all.length > 0) {
-                        let validItems = all.filter(item => !item.id.startsWith("INIT_"));
-                        if (validItems.length > 0) {
-                            let maxNumericId = Math.max(...validItems.map(item => parseInt(item.id.split('_')[0]) || 0));
-                            let maxItem = validItems.find(item => item.id.startsWith(maxNumericId.toString()));
-                            if (maxItem) latestId = maxItem.id;
-                        } else {
-                            all.sort((a, b) => b.id.localeCompare(a.id));
-                            latestId = all[0].id;
-                        }
+                    // Nếu phát hiện có tin mới thực sự, thực hiện cập nhật ghi đè Database Local
+                    if (newlyDetectedIds.length > 0) {
+                        saveToLocalDB(newlyDetectedIds);
                     }
 
-                    // 3. Sắp xếp lại danh sách và đẩy vào hàm render giao diện công bằng
+                    // Sắp xếp danh sách hiển thị (Tin mới nhất đẩy lên đầu)
                     all.sort((a, b) => b.id.localeCompare(a.id));
-                    renderLogs(all); // Dùng mảng đã gộp 'all' thay vì 'data' gốc để render đồng bộ màu sắc
+                    handleServerData({ calls: all.filter(i => i.type === 'CALL'), sms: all.filter(i => i.type === 'SMS') });
 
                     pollingTimer = setTimeout(syncLogs, 4000);
                 })
@@ -270,6 +293,9 @@
                 });
         }
 
+        /**
+         * ĐIỀU PHỐI DỮ LIỆU RA GIAO DIỆN
+         */
         function handleServerData(data) {
             document.getElementById("status-text").innerHTML = "🟢 Trực tuyến: " + new Date().toLocaleTimeString();
             let allLogs = [...(data.calls || []).map(i => ({ ...i, type: 'CALL' })), ...(data.sms || []).map(i => ({ ...i, type: 'SMS' }))];
@@ -277,13 +303,16 @@
             renderLogs(allLogs);
         }
 
+        /**
+         * KHỞI TẠO BẮN POPUP THÔNG BÁO CHROME
+         */
         function sendBrowserNotification(item) {
             if ("Notification" in window && Notification.permission === "granted") {
                 try {
                     new Notification(item.type === 'CALL' ? "📞 Cuộc gọi mới" : "💬 Tin nhắn mới", {
                         body: `Số: ${item.incomingNumber}\nNội dung: ${item.content || '...'}`,
                         silent: false,
-                        requireInteraction: true
+                        requireInteraction: true // Thông báo ghim cứng không tự tắt cho đến khi click
                     });
                 } catch (e) {
                     console.error("Trình duyệt chặn khởi tạo trực tiếp trên Main Thread:", e);
@@ -291,27 +320,24 @@
             }
         }
 
+        /**
+         * VẼ CÁC THẺ NHẬT KÝ ĐỒNG BỘ LÊN WEB
+         */
         function renderLogs(logs) {
             const listDiv = document.getElementById("log-list");
             const template = document.getElementById("log-template");
 
             listDiv.innerHTML = "";
 
-            // Lấy mốc thời gian số học của latestId hiện tại để so sánh
-            let currentLatestTimestamp = latestId.startsWith("INIT_") ? 0 : (parseInt(latestId.split('_')[0]) || 0);
-
             logs.forEach(item => {
                 const clone = template.content.cloneNode(true);
                 const itemDiv = clone.querySelector('.log-item');
 
                 itemDiv.classList.add(item.type);
-
-                // SỬA TẠI ĐÂY: Chỉ bôi vàng nếu ID của tin này lớn hơn hẳn mốc chặn latestId (tức là tin mới tinh vừa nổ)
-                if (!item.id.startsWith("INIT_")) {
-                    let itemTimestamp = parseInt(item.id.split('_')[0]) || 0;
-                    if (currentLatestTimestamp > 0 && itemTimestamp > currentLatestTimestamp) {
-                        itemDiv.classList.add('new-item');
-                    }
+                
+                // KIỂM TRA UI: Nếu ID nằm trong danh sách tin mới bắt được ở phiên này -> Thêm nền màu vàng rực
+                if (sessionNewIds.has(item.id)) {
+                    itemDiv.classList.add('new-item');
                 }
 
                 clone.querySelector('.txt-type').innerText = item.type;
@@ -323,11 +349,14 @@
             });
         }
 
+        /**
+         * ĐĂNG XUẤT VÀ NGẮT ĐỒNG BỘ
+         */
         function stopPolling() {
             if (pollingTimer) clearTimeout(pollingTimer);
             localStorage.removeItem("saved_user_phone");
             localStorage.removeItem("saved_user_token");
-            latestId = "";
+            sessionNewIds.clear();
             document.getElementById("monitor-screen").classList.add("initial-hidden");
             document.getElementById("login-screen").classList.remove("initial-hidden");
             document.getElementById("status-text").innerHTML = "🔴 Đã ngắt kết nối và đăng xuất.";
