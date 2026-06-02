@@ -4,91 +4,92 @@ const path = require('path');
 const cors = require('cors');
 
 const app = express();
-app.use(express.json());
 app.use(cors());
+app.use(express.json());
 
-const FILE_PATH = path.join(__dirname, 'all_logs.json');
+// Đường dẫn lưu trữ file cơ sở dữ liệu JSON tổng
+const DB_FILE = path.join(__dirname, 'all_logs.json');
 
-// Khởi tạo file nếu chưa có
-if (!fs.existsSync(FILE_PATH)) {
-    fs.writeFileSync(FILE_PATH, JSON.stringify({}), 'utf8');
-}
-
+// --- HÀM TIỆN ÍCH ĐỌC/GHI ĐĨA CỨNG ---
 function readDatabase() {
     try {
-        return JSON.parse(fs.readFileSync(FILE_PATH, 'utf8'));
-    } catch (e) {
+        if (!fs.existsSync(DB_FILE)) {
+            fs.writeFileSync(DB_FILE, JSON.stringify({}));
+            return {};
+        }
+        const data = fs.readFileSync(DB_FILE, 'utf8');
+        return data.trim() ? JSON.parse(data) : {};
+    } catch (error) {
+        console.error("Lỗi đọc file database:", error);
         return {};
     }
 }
 
-/**
- * ========================================================
- * 0. SERVE FILE FRONTEND (CẤU HÌNH MỚI)
- * Định tuyến để trả về giao diện app.html khi vào trang gốc
- * ========================================================
- */
-app.get('/', (req, res) => {
-    // Trả trực tiếp file app.html nằm cùng thư mục với server.js
-    res.sendFile(path.join(__dirname, 'app.html'));
-});
+function writeDatabase(data) {
+    try {
+        fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 4), 'utf8');
+    } catch (error) {
+        console.error("Lỗi ghi file database:", error);
+    }
+}
 
 /**
- * 1. API ĐÓN DATA TỪ APP MOBILE ĐẨY LÊN
- * URL: http://<IP>:3000/api/push
+ * 1. API NHẬN REQUEST ĐẨY LÊN TỪ APP MOBILE (POST)
+ * Thiết bị đẩy lên đủ: myPhoneNumber, token, type, incomingNumber, content, time
  */
-app.post('/api/push', (req, res) => {
+app.post('/api/push', (express.json()), (req, res) => {
     const { myPhoneNumber, token, type, incomingNumber, content, time } = req.body;
 
+    // Kiểm tra tính đầy đủ của thông tin đầu vào bắt buộc
     if (!myPhoneNumber || !token || !type || !incomingNumber) {
-        return res.status(400).json({ error: "Thiếu dữ liệu (myPhoneNumber, token, type, incomingNumber)" });
+        return res.status(400).json({ error: "Thiếu thông tin dữ liệu push bắt buộc!" });
     }
 
     const db = readDatabase();
 
-    // Nếu số điện thoại này chưa từng có trong hệ thống, tạo mới và gắn Token luôn
+    // KIỂM TRA: Nếu số điện thoại này chưa từng tồn tại trên hệ thống
     if (!db[myPhoneNumber]) {
+        // Tạo mới duy nhất một đối tượng JSON làm gốc cho số máy này
         db[myPhoneNumber] = {
             token: token,
             calls: [],
             sms: []
         };
+        console.log(`[Hệ thống] Đã tạo hồ sơ JSON mới cho số thiết bị: ${myPhoneNumber}`);
+    } else {
+        // Nếu số điện thoại ĐÃ CÓ HỒ SƠ: Kiểm tra xem token gửi lên có thay đổi không
+        if (db[myPhoneNumber].token !== token) {
+            console.log(`[Cập nhật] Token của số ${myPhoneNumber} đổi từ [${db[myPhoneNumber].token}] thành [${token}]`);
+            // Chỉ cập nhật (ghi đè) lại trường token mới, tuyệt đối giữ nguyên mảng calls/sms cũ
+            db[myPhoneNumber].token = token;
+        }
     }
 
-    // Bảo mật: Nếu số điện thoại đã tồn tại nhưng gửi sai Token từ app, chặn lại ngay
-    if (db[myPhoneNumber].token !== token) {
-        return res.status(403).json({ error: "Token từ thiết bị di động không trùng khớp!" });
-    }
-
-    const logItem = {
-        id: `${type}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
-        incomingNumber,
+    // Tự sinh ID định danh duy nhất cho từng bản ghi log để frontend đối chiếu cache
+    const logId = type.toUpperCase() + "_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
+    const newLogItem = {
+        id: logId,
+        incomingNumber: incomingNumber,
         content: content || "",
-        time: time || new Date().toLocaleString('vi-VN')
+        time: time || new Date().toLocaleTimeString()
     };
 
-    // Đẩy dữ liệu vào mảng và cắt tỉa giới hạn tối đa 50 dòng cho mỗi loại
-    if (type === 'CALL') {
-        db[myPhoneNumber].calls.unshift(logItem);
-        if (db[myPhoneNumber].calls.length > 50) db[myPhoneNumber].calls.pop();
-    } else if (type === 'SMS') {
-        db[myPhoneNumber].sms.unshift(logItem);
-        if (db[myPhoneNumber].sms.length > 50) db[myPhoneNumber].sms.pop();
-    } else {
-        return res.status(400).json({ error: "Loại dữ liệu phải là CALL hoặc SMS" });
+    // Phân loại và đẩy bản ghi vào đúng mảng con bên trong đối tượng JSON của số điện thoại đó
+    if (type.toUpperCase() === 'CALL') {
+        db[myPhoneNumber].calls.push(newLogItem);
+    } else if (type.toUpperCase() === 'SMS') {
+        db[myPhoneNumber].sms.push(newLogItem);
     }
 
-    fs.writeFileSync(FILE_PATH, JSON.stringify(db, null, 2), 'utf8');
-    res.status(200).json({ success: true, message: "Ghi nhận log vào file tổng thành công." });
+    // Ghi lưu dữ liệu cập nhật xuống file cứng all_logs.json
+    writeDatabase(db);
+
+    return res.status(200).json({ status: "Success", message: "Đã đồng bộ dữ liệu thành công." });
 });
 
 /**
- * 2. API TRẢ DATA CHO WEB FRONTEND (BẢO MẬT)
- * URL: http://<IP>:3000/api/fetch?phone=0912345678&token=XYZ
- */
-/**
- * 2. API TRẢ DATA CHO WEB FRONTEND (ĐÃ SỬA LỖI ĐÓNG DẤU TYPE)
- * URL: http://localhost:3000/api/fetch?phone=0912345678&token=XYZ
+ * 2. API TRẢ DATA VỀ CHO WEB FRONTEND MONITOR (GET)
+ * URL truy vấn mẫu: http://localhost:3000/api/fetch?phone=123213123&token=MÃ_BẢO_MẬT
  */
 app.get('/api/fetch', (req, res) => {
     const { phone, token } = req.query;
@@ -100,24 +101,23 @@ app.get('/api/fetch', (req, res) => {
     const db = readDatabase();
     const userData = db[phone];
 
+    // Xác thực an toàn: Phải tồn tại SĐT đó và token nhập trên Web phải khớp với token hiện tại của JSON gốc
     if (!userData || userData.token !== token) {
-        return res.status(200).json([]);
+        return res.status(200).json([]); 
     }
 
-    // ÉP LOGIC: Tự động bổ sung trường type vào từng đối tượng trước khi gộp mảng
+    // Map dữ liệu đóng dấu nhãn loại log để Frontend nhận diện chuẩn xác
     const mappedCalls = (userData.calls || []).map(item => ({ ...item, type: 'CALL' }));
     const mappedSms = (userData.sms || []).map(item => ({ ...item, type: 'SMS' }));
 
-    // Gộp 2 mảng đã được gắn nhãn chắc chắn
+    // Gộp mảng phẳng trả về cho giao diện hiển thị tinh gọn
     const combinedLogs = [...mappedCalls, ...mappedSms];
-
+    
     res.status(200).json(combinedLogs);
 });
 
-// Chạy server
-app.listen(3000, () => {
-    console.log('====================================================');
-    console.log('Hệ thống xác thực và serve frontend đang hoạt động.');
-    console.log('Truy cập giao diện Web tại: http://localhost:3000');
-    console.log('====================================================');
+// Kích hoạt cổng lắng nghe linh hoạt tương thích tốt khi triển khai lên Render Cloud
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`=== SERVER GƯƠNG CHIẾU ĐỒNG BỘ ĐANG CHẠY TẠI CỔNG: ${PORT} ===`);
 });
