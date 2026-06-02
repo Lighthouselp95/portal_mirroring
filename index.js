@@ -41,35 +41,56 @@ function writeDatabase(data) {
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'app.html'));
 });
-app.post('/api/push', (express.json()), (req, res) => {
+/**
+ * 1. API NHẬN REQUEST ĐẨY LÊN TỪ APP MOBILE (POST)
+ */
+app.post('/api/push', (req, res) => {
     const { myPhoneNumber, token, type, incomingNumber, content, time } = req.body;
 
-    // Kiểm tra tính đầy đủ của thông tin đầu vào bắt buộc
-    if (!myPhoneNumber || !token || !type || !incomingNumber) {
-        return res.status(400).json({ error: "Thiếu thông tin dữ liệu push bắt buộc!" });
+    // Kiểm tra thông tin cốt lõi
+    if (!myPhoneNumber || !token || !type) {
+        return res.status(400).json({ error: "Thiếu thông tin định danh (SĐT hoặc Token)!" });
     }
 
     const db = readDatabase();
+    const isNewAccount = !db[myPhoneNumber];
 
-    // KIỂM TRA: Nếu số điện thoại này chưa từng tồn tại trên hệ thống
-    if (!db[myPhoneNumber]) {
-        // Tạo mới duy nhất một đối tượng JSON làm gốc cho số máy này
+    // KIỂM TRA & KHỞI TẠO HỒ SƠ
+    if (isNewAccount) {
         db[myPhoneNumber] = {
             token: token,
             calls: [],
             sms: []
         };
-        console.log(`[Hệ thống] Đã tạo hồ sơ JSON mới cho số thiết bị: ${myPhoneNumber}`);
+        console.log(`[Khởi tạo] Tạo hồ sơ gốc tự động cho số: ${myPhoneNumber}`);
     } else {
-        // Nếu số điện thoại ĐÃ CÓ HỒ SƠ: Kiểm tra xem token gửi lên có thay đổi không
+        // Nếu tài khoản đã có sẵn nhưng đổi mã Token mới
         if (db[myPhoneNumber].token !== token) {
-            console.log(`[Cập nhật] Token của số ${myPhoneNumber} đổi từ [${db[myPhoneNumber].token}] thành [${token}]`);
-            // Chỉ cập nhật (ghi đè) lại trường token mới, tuyệt đối giữ nguyên mảng calls/sms cũ
+            console.log(`[Cập nhật] Số ${myPhoneNumber} cập nhật mã Token mới: ${token}`);
             db[myPhoneNumber].token = token;
         }
     }
 
-    // Tự sinh ID định danh duy nhất cho từng bản ghi log để frontend đối chiếu cache
+    // XỬ LÝ RIÊNG CHO LỆNH KHỞI TẠO TỰ ĐỘNG (INIT)
+    if (type.toUpperCase() === 'INIT') {
+        // Tạo một log thông báo hệ thống chào mừng đặt vào mảng SMS làm mẫu
+        const logId = "INIT_" + Date.now();
+        db[myPhoneNumber].sms.push({
+            id: logId,
+            incomingNumber: incomingNumber || "HỆ THỐNG",
+            content: content || "Thiết bị kết nối thành công.",
+            time: time || new Date().toLocaleTimeString()
+        });
+        
+        writeDatabase(db);
+        return res.status(200).json({ status: "Success", message: "Đã kích hoạt tài khoản trực tuyến từ xa thành công." });
+    }
+
+    // XỬ LÝ CHO CÁC LOG CUỘC GỌI / SMS THỰC TẾ ĐẨY LÊN SAU NÀY
+    if (!incomingNumber) {
+        return res.status(400).json({ error: "Thiếu số điện thoại đối tác gửi đến!" });
+    }
+
     const logId = type.toUpperCase() + "_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
     const newLogItem = {
         id: logId,
@@ -78,16 +99,13 @@ app.post('/api/push', (express.json()), (req, res) => {
         time: time || new Date().toLocaleTimeString()
     };
 
-    // Phân loại và đẩy bản ghi vào đúng mảng con bên trong đối tượng JSON của số điện thoại đó
     if (type.toUpperCase() === 'CALL') {
         db[myPhoneNumber].calls.push(newLogItem);
     } else if (type.toUpperCase() === 'SMS') {
         db[myPhoneNumber].sms.push(newLogItem);
     }
 
-    // Ghi lưu dữ liệu cập nhật xuống file cứng all_logs.json
     writeDatabase(db);
-
     return res.status(200).json({ status: "Success", message: "Đã đồng bộ dữ liệu thành công." });
 });
 
