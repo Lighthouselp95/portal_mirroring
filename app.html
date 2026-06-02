@@ -250,6 +250,9 @@
         /**
          * VÒNG LẶP ĐỒNG BỘ ĐỊNH KỲ (MỖI 4 GIÂY)
          */
+        /**
+         * VÒNG LẶP ĐỒNG BỘ ĐỊNH KỲ (MỖI 4 GIÂY)
+         */
         function syncLogs() {
             // Luôn gọi API fetch toàn bộ tin để đối chiếu cục bộ với Local Database 
             fetch(`/api/fetch?phone=${inputPhone}&token=${inputToken}&lastId=&_=${Date.now()}`)
@@ -262,7 +265,7 @@
                     let newlyDetectedIds = [];
 
                     all.forEach(item => {
-                        // Bỏ qua không xử lý tin nhắn mồi hệ thống INIT
+                        // CHUẨN HÓA: Nếu là tin nhắn mồi hệ thống INIT, tự động coi là tin cũ, không xử lý thông báo/bôi màu
                         if (item.id.startsWith("INIT_")) return;
 
                         // KIỂM TRA DATABASE LOCAL: Nếu ID chưa từng xuất hiện trong máy Client!
@@ -281,17 +284,8 @@
                         saveToLocalDB(newlyDetectedIds);
                     }
 
-                    // Sắp xếp danh sách hiển thị (Tin mới nhất đẩy lên đầu)
-                    // THAY BẰNG ĐOẠN MỚI NÀY:
-                    all.sort((a, b) => {
-                        // Bóc tách lấy chuỗi số Timestamp từ ID (Bỏ chữ INIT_ hoặc đuôi _SMS nếu có)
-                        let timeA = parseInt(a.id.replace("INIT_", "").split("_")[0]) || 0;
-                        let timeB = parseInt(b.id.replace("INIT_", "").split("_")[0]) || 0;
-
-                        // Sắp xếp giảm dần: Số lớn hơn (mới hơn) đứng trước
-                        return timeB - timeA;
-                    });
-                    handleServerData({ calls: all.filter(i => i.type === 'CALL'), sms: all.filter(i => i.type === 'SMS') });
+                    // CHUẨN HÓA LUỒNG: Đẩy thẳng mảng gộp thô sang cho handleServerData tự xử lý sắp xếp và vẽ UI
+                    handleServerData(all);
 
                     pollingTimer = setTimeout(syncLogs, 4000);
                 })
@@ -303,19 +297,25 @@
 
         /**
          * ĐIỀU PHỐI DỮ LIỆU RA GIAO DIỆN
+         * Nhận đầu vào là mảng đã gộp phẳng (Array) hoặc Object data gốc từ server đổ về
          */
-        function handleServerData(data) {
+        function handleServerData(dataInput) {
             document.getElementById("status-text").innerHTML = "🟢 Trực tuyến: " + new Date().toLocaleTimeString();
-            let allLogs = [...(data.calls || []).map(i => ({ ...i, type: 'CALL' })), ...(data.sms || []).map(i => ({ ...i, type: 'SMS' }))];
-            // THAY BẰNG ĐOẠN MỚI NÀY:
-            all.sort((a, b) => {
-                // Bóc tách lấy chuỗi số Timestamp từ ID (Bỏ chữ INIT_ hoặc đuôi _SMS nếu có)
+
+            let allLogs = [];
+            if (Array.isArray(dataInput)) {
+                allLogs = dataInput;
+            } else {
+                allLogs = [...(dataInput.calls || []).map(i => ({ ...i, type: 'CALL' })), ...(dataInput.sms || []).map(i => ({ ...i, type: 'SMS' }))];
+            }
+
+            // Thực hiện sắp xếp số học ĐƠN NHẤT một lần tại đây trước khi vẽ UI
+            allLogs.sort((a, b) => {
                 let timeA = parseInt(a.id.replace("INIT_", "").split("_")[0]) || 0;
                 let timeB = parseInt(b.id.replace("INIT_", "").split("_")[0]) || 0;
-
-                // Sắp xếp giảm dần: Số lớn hơn (mới hơn) đứng trước
                 return timeB - timeA;
             });
+
             renderLogs(allLogs);
         }
 
