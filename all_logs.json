@@ -1,0 +1,20 @@
+{
+  "123213123": {
+    "token": "__",
+    "calls": [
+      {
+        "id": "CALL_1780387128797_d2152",
+        "incomingNumber": "099999999249",
+        "content": "Cuộc gọi thử nghiệm 2",
+        "time": "14:58:48 2/6/2026"
+      },
+      {
+        "id": "CALL_1780386762008_80qj7",
+        "incomingNumber": "0999999999",
+        "content": "Cuộc gọi thử nghiệm",
+        "time": "14:52:42 2/6/2026"
+      }
+    ],
+    "sms": []
+  }
+}
