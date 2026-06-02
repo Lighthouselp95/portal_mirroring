@@ -23,6 +23,17 @@ function readDatabase() {
 }
 
 /**
+ * ========================================================
+ * 0. SERVE FILE FRONTEND (CẤU HÌNH MỚI)
+ * Định tuyến để trả về giao diện app.html khi vào trang gốc
+ * ========================================================
+ */
+app.get('/', (req, res) => {
+    // Trả trực tiếp file app.html nằm cùng thư mục với server.js
+    res.sendFile(path.join(__dirname, 'app.html'));
+});
+
+/**
  * 1. API ĐÓN DATA TỪ APP MOBILE ĐẨY LÊN
  * URL: http://<IP>:3000/api/push
  */
@@ -72,13 +83,16 @@ app.post('/api/push', (req, res) => {
 });
 
 /**
- * 2. API TRẢ DATA CHO WEB FRONTEND (BẢO MẬT THEO ĐÚNG YÊU CẦU CỦA BẠN)
+ * 2. API TRẢ DATA CHO WEB FRONTEND (BẢO MẬT)
  * URL: http://<IP>:3000/api/fetch?phone=0912345678&token=XYZ
+ */
+/**
+ * 2. API TRẢ DATA CHO WEB FRONTEND (ĐÃ SỬA LỖI ĐÓNG DẤU TYPE)
+ * URL: http://localhost:3000/api/fetch?phone=0912345678&token=XYZ
  */
 app.get('/api/fetch', (req, res) => {
     const { phone, token } = req.query;
 
-    // Nếu không nhập đủ tham số, trả về tệp trống []
     if (!phone || !token) {
         return res.status(200).json([]);
     }
@@ -86,14 +100,24 @@ app.get('/api/fetch', (req, res) => {
     const db = readDatabase();
     const userData = db[phone];
 
-    // ĐỐI CHIẾU BẢO MẬT: Nếu không tìm thấy số điện thoại HOẶC sai token -> Trả về mảng rỗng []
     if (!userData || userData.token !== token) {
-        return res.status(200).json([]); 
+        return res.status(200).json([]);
     }
 
-    // Nếu đúng hoàn toàn, gộp 50 cuộc gọi và 50 SMS lại gửi về cho Frontend
-    const combinedLogs = [...userData.calls, ...userData.sms];
+    // ÉP LOGIC: Tự động bổ sung trường type vào từng đối tượng trước khi gộp mảng
+    const mappedCalls = (userData.calls || []).map(item => ({ ...item, type: 'CALL' }));
+    const mappedSms = (userData.sms || []).map(item => ({ ...item, type: 'SMS' }));
+
+    // Gộp 2 mảng đã được gắn nhãn chắc chắn
+    const combinedLogs = [...mappedCalls, ...mappedSms];
+
     res.status(200).json(combinedLogs);
 });
 
-app.listen(3000, () => console.log('Hệ thống xác thực file tổng đang hoạt động tại port 3000'));
+// Chạy server
+app.listen(3000, () => {
+    console.log('====================================================');
+    console.log('Hệ thống xác thực và serve frontend đang hoạt động.');
+    console.log('Truy cập giao diện Web tại: http://localhost:3000');
+    console.log('====================================================');
+});

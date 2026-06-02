@@ -3,75 +3,133 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Informing portal</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mirror Portal</title>
     <style>
+        /* Toàn bộ giao diện chuyển sang tông màu tối giản, không màu sắc */
         body {
-            font-family: system-ui, sans-serif;
-            background: #f4f6f8;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            background: #ffffff;
             padding: 20px;
+            margin: 0;
+            font-size: 16px;
+            color: #1a1a1a;
         }
 
+        /* Khung chứa thiết kế phẳng tuyệt đối, mỏng và tối giản */
         .box {
-            max-width: 550px;
-            margin: 30px auto;
-            background: white;
-            padding: 25px;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+            max-width: 700px;
+            margin: 20px auto;
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
         }
 
         .hidden {
             display: none;
         }
 
-        input {
-            width: 100%;
-            padding: 11px;
-            margin: 10px 0;
-            border: 1px solid #ccc;
-            border-radius: 6px;
-            box-sizing: border-box;
+        h2 {
+            font-size: 22px;
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: #000000;
+            font-weight: 700;
         }
 
+        label {
+            font-weight: 600;
+            font-size: 14px;
+            color: #333333;
+        }
+
+        /* Ô nhập liệu tinh gọn */
+        input {
+            width: 100%;
+            padding: 10px 12px;
+            margin: 6px 0 16px 0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 16px;
+            background-color: #ffffff;
+        }
+
+        input:focus {
+            border-color: #000000;
+            outline: none;
+        }
+
+        /* Nút bấm phẳng đen/trắng đơn giản */
         button {
             width: 100%;
-            padding: 11px;
-            background: #2ecc71;
-            color: white;
+            padding: 12px;
+            background: #000000;
+            color: #ffffff;
             border: none;
-            border-radius: 6px;
+            border-radius: 4px;
             cursor: pointer;
             font-weight: bold;
-            font-size: 1em;
+            font-size: 16px;
         }
 
         button:hover {
-            background: #27ae60;
+            background: #222222;
         }
 
+        /* DANH SÁCH ITEMS: Ép mỏng tối đa chiều dọc, bỏ toàn bộ màu cam/xanh */
         .log-item {
-            padding: 12px;
-            margin: 10px 0;
-            border-radius: 6px;
-            border-left: 5px solid #ccc;
-            background: #fafafa;
+            padding: 6px 12px;
+            /* Giảm padding dọc xuống còn 6px cực mỏng */
+            margin: 6px 0;
+            /* Thu hẹp khoảng cách giữa các dòng */
+            border-radius: 0;
+            background: #ffffff;
+            border: 1px solid #e0e0e0;
+            border-left: 4px solid #000000;
+            /* Tất cả dùng chung viền đen mặc định */
         }
 
+        /* CALL và SMS chỉ phân biệt nhẹ bằng độ đậm nhạt của viền trái, KHÔNG DÙNG MÀU NỀN */
         .CALL {
-            border-left-color: #e67e22;
-            background: #fff5eb;
+            border-left-color: #000000;
         }
 
+        /* Cuộc gọi: Viền đen đậm */
         .SMS {
-            border-left-color: #2ecc71;
-            background: #f0fdf4;
+            border-left-color: #888888;
         }
 
+        /* Tin nhắn: Viền xám mờ */
+
+        /* Phần chứa thời gian và loại log */
         .meta {
             display: flex;
             justify-content: space-between;
-            font-size: 0.85em;
-            color: #7f8c8d;
+            font-size: 12px;
+            color: #666666;
+            margin-bottom: 2px;
+        }
+
+        /* Số điện thoại đối tác viết mỏng gọn */
+        .log-target {
+            font-size: 15px;
+            font-weight: 600;
+            color: #000000;
+            display: inline-block;
+            margin-right: 10px;
+        }
+
+        /* Nội dung tin nhắn / cuộc gọi được thu gọn tối đa */
+        .log-content {
+            margin-top: 2px;
+            font-size: 14px;
+            color: #333333;
+            padding: 0;
+            background: none;
+            border: none;
+            line-height: 1.4;
         }
     </style>
 </head>
@@ -80,25 +138,27 @@
 
     <div id="login-screen" class="box">
         <h2>Đồng bộ thiết bị di động</h2>
-        <label for="phone-input" style="font-weight: bold; font-size: 0.9em;">Số điện thoại thiết bị:</label>
-        <input type="text" id="phone-input" placeholder="Nhập số điện thoại thiết bị (Ví dụ: 0912345678)">
+        <label for="phone-input">Số điện thoại thiết bị:</label>
+        <input type="text" id="phone-input" placeholder="Ví dụ: 123213123">
 
-        <label for="token-input" style="font-weight: bold; font-size: 0.9em; margin-top: 10px; display: block;">Mã Token
-            định danh bảo mật:</label>
+        <label for="token-input">Mã Token định danh bảo mật:</label>
         <input type="text" id="token-input" placeholder="Nhập mã Token định danh bảo mật">
 
         <button onclick="startPolling()">Kết nối hệ thống</button>
     </div>
 
     <div id="monitor-screen" class="box hidden">
-        <h2 style="margin-top:0;">Thiết bị: <span id="display-phone" style="color:#27ae60;"></span></h2>
-        <p id="status-text" style="color: #7f8c8d; font-size: 0.9em;"></p>
-        <button onclick="stopPolling()" style="background: #e74c3c;">Đăng xuất / Ngắt kết nối</button>
-        <div id="log-list" style="margin-top: 15px; max-height: 500px; overflow-y: auto;"></div>
+        <h2 style="margin-top:0;">Thiết bị: <span id="display-phone"></span></h2>
+        <p id="status-text" style="color: #666666; font-size: 13px; margin-bottom: 12px;"></p>
+        <button onclick="stopPolling()"
+            style="background: #666666; padding: 6px 12px; font-size: 13px; width: auto; font-weight: normal; margin-bottom: 15px;">Đăng
+            xuất / Ngắt kết nối</button>
+        <div id="log-list" style="max-height: 650px; overflow-y: auto;"></div>
     </div>
 
     <script>
-        const API_URL = "http://localhost:3000/api/fetch";
+        // Bạn có thể sửa thành "/api/fetch" hoặc đường dẫn tuyệt đối tùy cấu hình chạy của bạn
+        const API_URL = "/api/fetch";
         let inputPhone = "";
         let inputToken = "";
         let pollInterval = null;
@@ -107,20 +167,13 @@
             Notification.requestPermission();
         }
 
-        // ==========================================
-        // ⚙️ TỰ ĐỘNG KHỞI CHẠY KHI MỞ TRANG / REFRESH
-        // ==========================================
         window.onload = function () {
-            // Đọc thông tin cấu hình cũ đã lưu trong máy
             const savedPhone = localStorage.getItem("saved_user_phone");
             const savedToken = localStorage.getItem("saved_user_token");
 
-            // Nếu có dữ liệu cũ, tự động điền vào ô và kích hoạt chạy luôn
             if (savedPhone && savedToken) {
                 document.getElementById("phone-input").value = savedPhone;
                 document.getElementById("token-input").value = savedToken;
-
-                console.log("Tìm thấy cấu hình cũ, tự động đăng nhập...");
                 startPolling();
             }
         };
@@ -138,16 +191,13 @@
                 return alert("Vui lòng điền đầy đủ cả Số điện thoại và Token!");
             }
 
-            // ĐỒNG BỘ: Lưu thông tin cấu hình vào Local Browser để không bị mất khi F5
             localStorage.setItem("saved_user_phone", inputPhone);
             localStorage.setItem("saved_user_token", inputToken);
 
-            // Chuyển màn hình giao diện
             document.getElementById("login-screen").style.display = "none";
             document.getElementById("monitor-screen").classList.remove("hidden");
             document.getElementById("display-phone").innerText = inputPhone;
 
-            // Tiến hành poll chu kỳ 3 giây
             if (pollInterval) clearInterval(pollInterval);
             syncLogs();
             pollInterval = setInterval(syncLogs, 3000);
@@ -161,41 +211,36 @@
                 .then(serverLogs => {
                     const statusTxt = document.getElementById("status-text");
 
-                    // 1. Kiểm tra nếu tệp trống từ server
                     if (!serverLogs || serverLogs.length === 0) {
-                        statusTxt.innerText = "⚠️ Sai Token hoặc thiết bị chưa có dữ liệu!";
-                        statusTxt.style.color = "#e74c3c";
-                        document.getElementById("log-list").innerHTML = "<p style='text-align:center; color:#999;'>Không có quyền truy cập dữ liệu (Tệp trống).</p>";
+                        statusTxt.innerText = "⚠️ Sai Token hoặc thiết bị chưa kích hoạt đẩy dữ liệu lên!";
+                        statusTxt.style.color = "#333";
+                        document.getElementById("log-list").innerHTML = "<p style='text-align:center; color:#999; font-size: 14px;'>Không có quyền truy cập dữ liệu (Tệp trống).</p>";
                         return;
                     }
 
-                    // Kết nối thành công
                     statusTxt.innerText = "🔄 Đang kiểm tra dữ liệu: " + new Date().toLocaleTimeString();
-                    statusTxt.style.color = "#27ae60";
+                    statusTxt.style.color = "#333";
 
-                    // 2. Sắp xếp dữ liệu từ mới đến cũ
                     serverLogs.sort((a, b) => b.id.localeCompare(a.id));
 
-                    // 3. Đọc cache cũ dưới máy tính để chuẩn bị đối chiếu bắn thông báo đẩy
                     const localCacheKey = `cache_${inputPhone}`;
                     const localLogs = JSON.parse(localStorage.getItem(localCacheKey)) || [];
                     const localIds = localLogs.map(item => item.id);
 
-                    // Duyệt xem có ID nào mới tinh chưa từng có ở local không để bắn Notification
+                    let isAnyNew = false;
                     serverLogs.forEach(sItem => {
                         if (localIds.length > 0 && !localIds.includes(sItem.id)) {
-                            sendBrowserPush(sItem); // Có cái mới hoàn toàn thì bắn thông báo nổi
+                            sendBrowserPush(sItem);
+                            isAnyNew = true;
                         }
                     });
 
-                    // 4. ÉP LƯU CACHE VÀ ÉP VẼ LẠI GIAO DIỆN (Bất kể chiều dài mảng thế nào)
                     localStorage.setItem(localCacheKey, JSON.stringify(serverLogs));
                     renderLogs(serverLogs);
                 })
-                .catch((err) => {
-                    console.error("Lỗi fetch:", err);
+                .catch(() => {
                     document.getElementById("status-text").innerText = "❌ Mất kết nối tới máy chủ Server.";
-                    document.getElementById("status-text").style.color = "#e74c3c";
+                    document.getElementById("status-text").style.color = "#333";
                 });
         }
 
@@ -210,29 +255,24 @@
 
         function renderLogs(logs) {
             const listDiv = document.getElementById("log-list");
-
-            // Nếu mảng rỗng, thông báo không có dữ liệu
-            if (!logs || logs.length === 0) {
-                listDiv.innerHTML = "<p style='text-align:center; color:#999;'>Không có dữ liệu cuộc gọi hay tin nhắn nào.</p>";
-                return;
-            }
-
-            listDiv.innerHTML = ""; // Xóa sạch giao diện cũ để nạp lại
+            listDiv.innerHTML = "";
 
             logs.forEach(item => {
-                const div = document.createElement("div");
-                // Đảm bảo gán class CALL hoặc SMS để đổ màu nền
-                div.className = `log-item ${item.type || 'CALL'}`;
+                // Chuẩn hóa dữ liệu: Chuyển hết thành chữ HOA để tránh lệch pha chữ hoa/chữ thường
+                const currentType = (item.type || '').toUpperCase().trim();
 
-                // Thiết lập nội dung hiển thị hiển thị chính xác theo data của bạn
+                const div = document.createElement("div");
+                // Gán class CALL hoặc SMS chính xác sau khi đã chuẩn hóa
+                div.className = `log-item ${currentType === 'CALL' ? 'CALL' : 'SMS'}`;
+
                 div.innerHTML = `
             <div class="meta">
-                <strong>${item.type === 'CALL' ? '🍊 CUỘC GỌI ĐẾN' : '🍏 TIN NHẮN SMS'}</strong>
+                <span><strong>${currentType === 'CALL' ? 'CUỘC GỌI ĐẾN' : 'TIN NHẮN SMS'}</strong></span>
                 <span>${item.time}</span>
             </div>
-            <div style="font-weight: bold; margin-top: 6px; color: #2c3e50;">Số máy đối tác: ${item.incomingNumber}</div>
-            <div class="log-content" style="margin-top: 6px; font-size: 0.95em; color: #555; background: rgba(255,255,255,0.6); padding: 6px; border-radius: 4px;">
-                ${item.content ? item.content : '<i>(Đang đổ chuông...)</i>'}
+            <div>
+                <span class="log-target">Đối tác: ${item.incomingNumber}</span>
+                <span class="log-content">${item.content ? item.content : '<i>(Trống)</i>'}</span>
             </div>
         `;
                 listDiv.appendChild(div);
@@ -240,18 +280,13 @@
         }
 
         function stopPolling() {
-            // Dừng vòng lặp poll 3 giây
             clearInterval(pollInterval);
-
-            // XÓA SẠCH: Xóa thông tin cấu hình cũ khỏi bộ nhớ browser khi bấm Đăng xuất
             localStorage.removeItem("saved_user_phone");
             localStorage.removeItem("saved_user_token");
 
-            // Reset trống các ô nhập liệu
             document.getElementById("phone-input").value = "";
             document.getElementById("token-input").value = "";
 
-            // Trả giao diện về trạng thái ban đầu
             document.getElementById("login-screen").style.display = "block";
             document.getElementById("monitor-screen").classList.add("hidden");
         }
