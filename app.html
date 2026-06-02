@@ -213,7 +213,7 @@
                     all.sort((a, b) => b.id.localeCompare(a.id));
 
                     all.forEach(item => {
-                        if (item.isNew) {
+                        if (latestId && item.id > latestId) {
                             sendBrowserNotification(item);
                         }
                     });
