@@ -1,26 +1,114 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mirror Portal</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background: #ffffff; padding: 20px; margin: 0; font-size: 16px; color: #1a1a1a; box-sizing: border-box; }
-        .initial-hidden { display: none !important; }
-        .main-container { display: grid; grid-template-columns: 300px 1fr; gap: 24px; max-width: 1600px; margin: 0 auto; }
-        .login-box { max-width: 450px; margin: 60px auto; background: #ffffff; padding: 30px; border-radius: 4px; border: 1px solid #e0e0e0; }
-        .config-box { background: #ffffff; padding: 20px; border-radius: 4px; border: 1px solid #e0e0e0; align-self: start; }
-        .log-box { background: #ffffff; padding: 20px; border-radius: 4px; border: 1px solid #e0e0e0; width: 100%; box-sizing: border-box; }
-        input { width: 100%; padding: 10px 12px; margin: 6px 0 16px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 16px; }
-        button { width: 100%; padding: 12px; background: #000000; color: #ffffff; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
-        .log-item { padding: 8px 16px; margin: 6px 0; border: 1px solid #e0e0e0; }
-        .new-item { background-color: #fff6e5; border: 1px solid #f90; }
-        .CALL { border-left: 4px solid #000000; }
-        .SMS { border-left: 4px solid #888888; }
-        .meta { font-size: 12px; color: #666; display: flex; justify-content: space-between; }
-        @media (max-width: 768px) { .main-container { grid-template-columns: 1fr; } }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            background: #ffffff;
+            padding: 20px;
+            margin: 0;
+            font-size: 16px;
+            color: #1a1a1a;
+            box-sizing: border-box;
+        }
+
+        .initial-hidden {
+            display: none !important;
+        }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 24px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .login-box {
+            max-width: 450px;
+            margin: 60px auto;
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .config-box {
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
+            align-self: start;
+        }
+
+        .log-box {
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px 12px;
+            margin: 6px 0 16px 0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #000000;
+            color: #ffffff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .log-item {
+            padding: 8px 16px;
+            margin: 6px 0;
+            border: 1px solid #e0e0e0;
+        }
+
+        .new-item {
+            background-color: #fff6e5;
+            border: 1px solid #f90;
+        }
+
+        .CALL {
+            border-left: 4px solid #000000;
+        }
+
+        .SMS {
+            border-left: 4px solid #888888;
+        }
+
+        .meta {
+            font-size: 12px;
+            color: #666;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        @media (max-width: 768px) {
+            .main-container {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
+
 <body>
 
     <template id="log-template">
@@ -87,7 +175,7 @@
             if ("Notification" in window) Notification.requestPermission();
 
             // Khi chủ động kết nối (hoặc đổi số), reset lại mốc ID để tránh lệch dòng dữ liệu số cũ
-            latestId = ""; 
+            latestId = "";
             if (pollingTimer) clearTimeout(pollingTimer);
 
             fetch(`/api/fetch?phone=${inputPhone}&token=${inputToken}&lastId=`)
@@ -95,19 +183,19 @@
                 .then(data => {
                     localStorage.setItem("saved_user_phone", inputPhone);
                     localStorage.setItem("saved_user_token", inputToken);
-                    
+
                     document.getElementById("display-phone").innerText = data.phone;
                     document.getElementById("login-screen").classList.add("initial-hidden");
                     document.getElementById("monitor-screen").classList.remove("initial-hidden");
 
                     let all = [...(data.calls || []), ...(data.sms || [])];
-                    if(all.length > 0) {
+                    if (all.length > 0) {
                         all.sort((a, b) => b.id.localeCompare(a.id));
                         latestId = all[0].id;
                     }
 
                     handleServerData(data);
-                    pollingTimer = setTimeout(syncLogs, 3000); 
+                    pollingTimer = setTimeout(syncLogs, 3000);
                 })
                 .catch(err => {
                     document.getElementById("login-status-text").innerText = `❌ ${err}`;
@@ -119,7 +207,7 @@
             fetch(`/api/fetch?phone=${inputPhone}&token=${inputToken}&lastId=${latestId}&_=${Date.now()}`)
                 .then(res => res.ok ? res.json() : Promise.reject())
                 .then(data => {
-                    let all = [...(data.calls || []).map(i=>({...i, type:'CALL'})), ...(data.sms || []).map(i=>({...i, type:'SMS'}))];
+                    let all = [...(data.calls || []).map(i => ({ ...i, type: 'CALL' })), ...(data.sms || []).map(i => ({ ...i, type: 'SMS' }))];
                     all.sort((a, b) => b.id.localeCompare(a.id));
 
                     all.forEach(item => {
@@ -128,10 +216,10 @@
                         }
                     });
 
-                    if(all.length > 0) latestId = all[0].id;
-                    
+                    if (all.length > 0) latestId = all[0].id;
+
                     handleServerData(data);
-                    pollingTimer = setTimeout(syncLogs, 3000); 
+                    pollingTimer = setTimeout(syncLogs, 3000);
                 })
                 .catch(() => {
                     document.getElementById("status-text").innerHTML = "⚠️ Mất kết nối, đang thử lại...";
@@ -141,7 +229,7 @@
 
         function handleServerData(data) {
             document.getElementById("status-text").innerHTML = "🟢 Trực tuyến: " + new Date().toLocaleTimeString();
-            let allLogs = [...(data.calls || []).map(i=>({...i, type:'CALL'})), ...(data.sms || []).map(i=>({...i, type:'SMS'}))];
+            let allLogs = [...(data.calls || []).map(i => ({ ...i, type: 'CALL' })), ...(data.sms || []).map(i => ({ ...i, type: 'SMS' }))];
             allLogs.sort((a, b) => b.id.localeCompare(a.id));
             renderLogs(allLogs);
         }
@@ -161,7 +249,7 @@
         function renderLogs(logs) {
             const listDiv = document.getElementById("log-list");
             const template = document.getElementById("log-template");
-            
+
             listDiv.innerHTML = "";
 
             logs.forEach(item => {
@@ -181,12 +269,23 @@
         }
 
         function stopPolling() {
+            // 1. Dừng ngay lập tức vòng lặp fetch ngầm (3000ms)
             if (pollingTimer) clearTimeout(pollingTimer);
-            // Giữ nguyên dữ liệu trong ô input và localStorage, chỉ ngắt luồng hiển thị
+
+            // 2. Xóa sạch thông tin SĐT và Token lưu trong bộ nhớ trình duyệt (Đăng xuất hẳn)
+            localStorage.removeItem("saved_user_phone");
+            localStorage.removeItem("saved_user_token");
+
+            // 3. Reset các biến tạm trong RAM về rỗng (đảm bảo an toàn dữ liệu)
+            latestId = "";
+
+            // 4. Ẩn màn hình giám sát, hiện lại màn hình đăng nhập 
+            // (Các ô input "Số điện thoại" và "Mã Token" vẫn giữ nguyên chữ bạn đã nhập trước đó)
             document.getElementById("monitor-screen").classList.add("initial-hidden");
             document.getElementById("login-screen").classList.remove("initial-hidden");
-            document.getElementById("status-text").innerHTML = "🔴 Đã ngắt kết nối.";
+            document.getElementById("status-text").innerHTML = "🔴 Đã ngắt kết nối và đăng xuất.";
         }
     </script>
 </body>
+
 </html>
