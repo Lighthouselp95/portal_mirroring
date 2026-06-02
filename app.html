@@ -92,7 +92,7 @@
                 .then(res => res.ok ? res.json() : Promise.reject())
                 .then(data => {
                     handleServerData(data);
-                    setTimeout(syncLogs, 5000);
+                    setTimeout(syncLogs, 3000);
                 })
                 .catch(() => {
                     document.getElementById("status-text").innerHTML = "⚠️ Mất kết nối, đang thử lại...";
