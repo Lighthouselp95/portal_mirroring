@@ -117,42 +117,51 @@ app.post('/api/push', (req, res) => {
  * 2. API TRẢ DATA VỀ CHO WEB FRONTEND MONITOR (GET) - ĐÃ CẬP NHẬT TÁCH BIỆT LỖI SAI TOKEN
  * URL: https://portal-mirroring.onrender.com/api/fetch?phone=0967684284&token=17abe4f9
  */
+/**
+ * 2. API TRẢ DỮ LIỆU VỀ CHO GIAO DIỆN WEB POLLING (GET)
+ * Luồng chạy: Mỗi lần Web gọi, Server đọc trực tiếp từ file JSON theo SĐT để tránh cache nhầm tài khoản
+ */
 app.get('/api/fetch', (req, res) => {
-    // Ép trình duyệt LUÔN LUÔN lấy dữ liệu mới nhất từ Server, KHÔNG cho phép Cache (Chống lỗi trạng thái 304)
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
-
+    // Lấy SĐT và Token do trang Web truyền lên từ URL query (?phone=...&token=...)
     const { phone, token } = req.query;
 
+    // LƯU Ý BẢO MẬT: Nếu Web không truyền đủ thông tin, chặn lại ngay
     if (!phone || !token) {
-        return res.status(400).json({ error: "Thiếu tham số truy vấn phone hoặc token!" });
+        return res.status(400).json({ 
+            error: "Thiếu tham số truy vấn (Yêu cầu có phone và token)!" 
+        });
     }
 
-    const db = readDatabase();
-    const userData = db[phone];
+    // Đọc file all_logs.json mới nhất ngay tại thời điểm Web gọi (Bẻ gãy hoàn toàn cơ chế cache cũ)
+    const db = readDatabase(); 
 
-    // TRƯỜNG HỢP 1: Số điện thoại này hoàn toàn chưa tồn tại trong file tổng
-    if (!userData) {
+    // KIỂM TRA BẢO MẬT 1: Thiết bị đã từng INIT (khởi tạo) trên hệ thống chưa?
+    if (!db[phone]) {
         console.log(`[Fetch Bảo mật] Thiết bị ${phone} chưa từng được khởi tạo từ App.`);
-        return res.status(404).json({ error: "DEVICE_NOT_FOUND", message: "Số điện thoại này chưa được thiết lập trên App di động!" });
+        return res.status(440).json({ 
+            error: "Thiết bị chưa từng được khởi tạo. Vui lòng bấm 'Sinh mã Token' hoặc 'Lưu thông tin' trên App trước!" 
+        });
     }
 
-    // TRƯỜNG HỢP 2: Số điện thoại có tồn tại, nhưng Token nhập trên Web không khớp với Token trong JSON gốc
-    if (userData.token !== token) {
-        console.log(`[Fetch Bảo mật] Thiết bị ${phone} truy cập thất bại do nhập SAI mã Token.`);
-        return res.status(401).json({ error: "INVALID_TOKEN", message: "Mã Token định danh không chính xác!" });
+    // KIỂM TRA BẢO MẬT 2: Mã Token nhập trên Web có khớp với Token ngầm của App không?
+    if (db[phone].token !== token) {
+        console.log(`[Fetch Bảo mật] Thiết bị ${phone} nhập sai mã Token trên Web.`);
+        return res.status(403).json({ 
+            error: "Sai mã Token định danh! Không có quyền truy cập dữ liệu." 
+        });
     }
 
-    // TRƯỜNG HỢP 3: Hợp lệ -> Đóng gói mảng dữ liệu trả về (Có thể trả về [] nếu tài khoản mới chưa có log)
-    const mappedCalls = (userData.calls || []).map(item => ({ ...item, type: 'CALL' }));
-    const mappedSms = (userData.sms || []).map(item => ({ ...item, type: 'SMS' }));
+    // ĐÁP ỨNG THÀNH CÔNG: Bốc chính xác và chỉ duy nhất dữ liệu của SĐT này để trả về
+    // Tuyệt đối không lưu lại biến tạm toàn cục, đổi tài khoản trên Web là dữ liệu đổi ngay lập tức
+    const accountData = db[phone];
 
-    const combinedLogs = [...mappedCalls, ...mappedSms];
-    
-    return res.status(200).json(combinedLogs);
+    return res.status(200).json({
+        status: "Success",
+        phone: phone,
+        calls: accountData.calls || [],
+        sms: accountData.sms || []
+    });
 });
-
 // Kích hoạt cổng lắng nghe linh hoạt tương thích tốt khi triển khai lên Render Cloud
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
