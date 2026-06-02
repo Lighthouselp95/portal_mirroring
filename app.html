@@ -160,9 +160,9 @@
     <script>
         let inputPhone = "", inputToken = "";
         let pollingTimer = null;
-        
+
         // Mảng chứa danh sách ID tin nhắn mới kích hoạt bôi vàng trên UI chu kỳ hiện tại
-        let sessionNewIds = new Set(); 
+        let sessionNewIds = new Set();
 
         // Khởi tạo quyền Notification hệ thống ngay khi load trang
         if ("Notification" in window && Notification.permission !== "granted") {
@@ -228,7 +228,7 @@
 
                     // Gộp toàn bộ lịch sử cuộc gọi và SMS từ server trả về
                     let all = [...(data.calls || []), ...(data.sms || [])];
-                    
+
                     // Lấy ra danh sách toàn bộ ID cũ này
                     let allIds = all.map(item => item.id);
 
@@ -237,7 +237,7 @@
 
                     // Render giao diện (Tất cả hiển thị màu trắng bình thường vì thuộc về quá khứ)
                     handleServerData(data);
-                    
+
                     // Kích hoạt vòng lặp chạy ngầm đồng bộ sau 3 giây
                     pollingTimer = setTimeout(syncLogs, 3000);
                 })
@@ -256,7 +256,7 @@
                 .then(res => res.ok ? res.json() : Promise.reject())
                 .then(data => {
                     let all = [...(data.calls || []).map(i => ({ ...i, type: 'CALL' })), ...(data.sms || []).map(i => ({ ...i, type: 'SMS' }))];
-                    
+
                     // Tải danh sách ID đã biết từ Database Local lên để làm mốc đối chiếu
                     let knownIds = new Set(getLocalDB());
                     let newlyDetectedIds = [];
@@ -269,7 +269,7 @@
                         if (!knownIds.has(item.id)) {
                             // 1. Kích hoạt thông báo đẩy của trình duyệt Chrome lập tức
                             sendBrowserNotification(item);
-                            
+
                             // 2. Điền tên vào danh sách bôi vàng trên UI và danh sách lưu Database
                             sessionNewIds.add(item.id);
                             newlyDetectedIds.push(item.id);
@@ -282,7 +282,15 @@
                     }
 
                     // Sắp xếp danh sách hiển thị (Tin mới nhất đẩy lên đầu)
-                    all.sort((a, b) => b.id.localeCompare(a.id));
+                    // THAY BẰNG ĐOẠN MỚI NÀY:
+                    all.sort((a, b) => {
+                        // Bóc tách lấy chuỗi số Timestamp từ ID (Bỏ chữ INIT_ hoặc đuôi _SMS nếu có)
+                        let timeA = parseInt(a.id.replace("INIT_", "").split("_")[0]) || 0;
+                        let timeB = parseInt(b.id.replace("INIT_", "").split("_")[0]) || 0;
+
+                        // Sắp xếp giảm dần: Số lớn hơn (mới hơn) đứng trước
+                        return timeB - timeA;
+                    });
                     handleServerData({ calls: all.filter(i => i.type === 'CALL'), sms: all.filter(i => i.type === 'SMS') });
 
                     pollingTimer = setTimeout(syncLogs, 4000);
@@ -299,7 +307,15 @@
         function handleServerData(data) {
             document.getElementById("status-text").innerHTML = "🟢 Trực tuyến: " + new Date().toLocaleTimeString();
             let allLogs = [...(data.calls || []).map(i => ({ ...i, type: 'CALL' })), ...(data.sms || []).map(i => ({ ...i, type: 'SMS' }))];
-            allLogs.sort((a, b) => b.id.localeCompare(a.id));
+            // THAY BẰNG ĐOẠN MỚI NÀY:
+            all.sort((a, b) => {
+                // Bóc tách lấy chuỗi số Timestamp từ ID (Bỏ chữ INIT_ hoặc đuôi _SMS nếu có)
+                let timeA = parseInt(a.id.replace("INIT_", "").split("_")[0]) || 0;
+                let timeB = parseInt(b.id.replace("INIT_", "").split("_")[0]) || 0;
+
+                // Sắp xếp giảm dần: Số lớn hơn (mới hơn) đứng trước
+                return timeB - timeA;
+            });
             renderLogs(allLogs);
         }
 
@@ -334,7 +350,7 @@
                 const itemDiv = clone.querySelector('.log-item');
 
                 itemDiv.classList.add(item.type);
-                
+
                 // KIỂM TRA UI: Nếu ID nằm trong danh sách tin mới bắt được ở phiên này -> Thêm nền màu vàng rực
                 if (sessionNewIds.has(item.id)) {
                     itemDiv.classList.add('new-item');
