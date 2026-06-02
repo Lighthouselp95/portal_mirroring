@@ -121,38 +121,55 @@ app.post('/api/push', (req, res) => {
  * 2. API TRẢ DỮ LIỆU VỀ CHO GIAO DIỆN WEB POLLING (GET)
  * Luồng chạy: Mỗi lần Web gọi, Server đọc trực tiếp từ file JSON theo SĐT để tránh cache nhầm tài khoản
  */
+/**
+ * 2. API TRẢ DỮ LIỆU VỀ CHO GIAO DIỆN WEB POLLING (GET)
+ * Luồng chạy: Kiểm tra đối tượng theo SĐT, nếu CHƯA CÓ thì TỰ ĐỘNG TẠO MỚI ngay lập tức.
+ */
 app.get('/api/fetch', (req, res) => {
-    // Lấy SĐT và Token do trang Web truyền lên từ URL query (?phone=...&token=...)
     const { phone, token } = req.query;
 
-    // LƯU Ý BẢO MẬT: Nếu Web không truyền đủ thông tin, chặn lại ngay
+    // Kiểm tra tham số đầu vào từ URL Web
     if (!phone || !token) {
         return res.status(400).json({ 
-            error: "Thiếu tham số truy vấn (Yêu cầu có phone và token)!" 
+            error: "Thiếu tham số truy vấn (Yêu cầu phải có phone và token)!" 
         });
     }
 
-    // Đọc file all_logs.json mới nhất ngay tại thời điểm Web gọi (Bẻ gãy hoàn toàn cơ chế cache cũ)
-    const db = readDatabase(); 
+    let db = readDatabase(); 
+    let isNewAccount = !db[phone];
 
-    // KIỂM TRA BẢO MẬT 1: Thiết bị đã từng INIT (khởi tạo) trên hệ thống chưa?
-    if (!db[phone]) {
-        console.log(`[Fetch Bảo mật] Thiết bị ${phone} chưa từng được khởi tạo từ App.`);
-        return res.status(440).json({ 
-            error: "Thiết bị chưa từng được khởi tạo. Vui lòng bấm 'Sinh mã Token' hoặc 'Lưu thông tin' trên App trước!" 
-        });
+    // ĐỐI CHIẾU & TỰ ĐỘNG KHỞI TẠO NẾU CHƯA CÓ TRÊN SERVER
+    if (isNewAccount) {
+        console.log(`[Tự động Khởi tạo] Không tìm thấy đối tượng ${phone} trên hệ thống. Đang tạo phân vùng mới...`);
+        
+        // Khởi tạo cấu hình tài khoản trống mặc định với Token lấy từ giao diện Web gửi lên
+        db[phone] = {
+            token: token,
+            calls: [],
+            sms: [
+                {
+                    id: "INIT_WEB_" + Date.now(),
+                    incomingNumber: "HỆ THỐNG",
+                    content: "Tài khoản được khởi tạo tự động từ giao diện kết nối Web.",
+                    time: new Date().toLocaleTimeString()
+                }
+            ]
+        };
+        
+        // Ghi lại dữ liệu mới vào file all_logs.json
+        writeDatabase(db);
+    } else {
+        // Nếu ĐÃ CÓ đối tượng nhưng người dùng đổi Token mới trên Web, hãy kiểm tra tính hợp lệ
+        // (Hoặc nếu bạn muốn ép Server cập nhật luôn Token mới từ Web theo cơ chế tin cậy hoàn toàn, hãy bỏ comment dòng dưới)
+        if (db[phone].token !== token) {
+            console.log(`[Fetch Bảo mật] Thiết bị ${phone} nhập sai mã Token trên Web.`);
+            return res.status(403).json({ 
+                error: "Sai mã Token định danh của thiết bị! Vui lòng kiểm tra lại." 
+            });
+        }
     }
 
-    // KIỂM TRA BẢO MẬT 2: Mã Token nhập trên Web có khớp với Token ngầm của App không?
-    if (db[phone].token !== token) {
-        console.log(`[Fetch Bảo mật] Thiết bị ${phone} nhập sai mã Token trên Web.`);
-        return res.status(403).json({ 
-            error: "Sai mã Token định danh! Không có quyền truy cập dữ liệu." 
-        });
-    }
-
-    // ĐÁP ỨNG THÀNH CÔNG: Bốc chính xác và chỉ duy nhất dữ liệu của SĐT này để trả về
-    // Tuyệt đối không lưu lại biến tạm toàn cục, đổi tài khoản trên Web là dữ liệu đổi ngay lập tức
+    // Bốc chính xác dữ liệu của số điện thoại này trả về cho giao diện Web
     const accountData = db[phone];
 
     return res.status(200).json({

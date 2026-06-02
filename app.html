@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mirror Portal</title>
-<style>
+    <style>
         /* Toàn bộ giao diện chuyển sang tông màu tối giản, không màu sắc */
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
@@ -25,7 +25,8 @@
             display: grid;
             grid-template-columns: 300px 1fr;
             gap: 24px;
-            max-width: 1600px; /* Nới rộng tổng thể để phân tách 2 cột trên màn hình lớn */
+            max-width: 1600px;
+            /* Nới rộng tổng thể để phân tách 2 cột trên màn hình lớn */
             margin: 0 auto;
         }
 
@@ -35,7 +36,8 @@
             padding: 20px;
             border-radius: 4px;
             border: 1px solid #e0e0e0;
-            align-self: start; /* Giữ khung cấu hình cố định ở đỉnh, không bị co giãn theo chiều dọc */
+            align-self: start;
+            /* Giữ khung cấu hình cố định ở đỉnh, không bị co giãn theo chiều dọc */
         }
 
         /* CỘT Ở GIỮA ĐÃ ĐƯỢC MỞ RỘNG - NƠI CHỨA DANH SÁCH LOG */
@@ -102,7 +104,8 @@
 
         /* DANH SÁCH ITEMS: Ép mỏng tối đa chiều dọc, tràn rộng theo chiều ngang cột giữa */
         .log-item {
-            padding: 8px 16px; /* Tăng nhẹ padding ngang để hiển thị cân đối khi cột mở rộng */
+            padding: 8px 16px;
+            /* Tăng nhẹ padding ngang để hiển thị cân đối khi cột mở rộng */
             margin: 6px 0;
             border-radius: 0;
             background: #ffffff;
@@ -112,11 +115,13 @@
 
         /* CALL và SMS chỉ phân biệt nhẹ bằng độ đậm nhạt của viền trái, KHÔNG DÙNG MÀU NỀN */
         .CALL {
-            border-left-color: #000000; /* Cuộc gọi: Viền đen đậm */
+            border-left-color: #000000;
+            /* Cuộc gọi: Viền đen đậm */
         }
 
         .SMS {
-            border-left-color: #888888; /* Tin nhắn: Viền xám mờ */
+            border-left-color: #888888;
+            /* Tin nhắn: Viền xám mờ */
         }
 
         /* Phần chứa thời gian và loại log */
@@ -146,13 +151,15 @@
             background: none;
             border: none;
             line-height: 1.5;
-            word-break: break-word; /* Đảm bảo tin nhắn quá dài tự động xuống hàng, không đâm thủng khung */
+            word-break: break-word;
+            /* Đảm bảo tin nhắn quá dài tự động xuống hàng, không đâm thủng khung */
         }
 
         /* HỖ TRỢ ĐÁP ỨNG TRÊN DI ĐỘNG (RESPONSIVE) */
         @media (max-width: 768px) {
             .main-container {
-                grid-template-columns: 1fr; /* Trên điện thoại sẽ tự động xếp dọc thành 1 cột như cũ */
+                grid-template-columns: 1fr;
+                /* Trên điện thoại sẽ tự động xếp dọc thành 1 cột như cũ */
                 gap: 16px;
             }
         }
@@ -204,49 +211,40 @@
         };
 
         function startPolling() {
-    const phone = document.getElementById('phone-input').value.trim();
-    const token = document.getElementById('token-input').value.trim();
-    const statusText = document.getElementById('status-text');
+            const phone = document.getElementById('phone-input').value.trim();
+            const token = document.getElementById('token-input').value.trim();
+            const statusText = document.getElementById('status-text');
 
-    if (!phone || !token) return;
+            if (!phone || !token) return;
 
-    // Tiến hành gọi API ngầm liên tục
-    fetch(`/api/fetch?phone=${phone}&token=${token}`)
-        .then(response => {
-            // Trường hợp 1: Token chuẩn, SĐT chuẩn (200 OK)
-            if (response.status === 200) {
-                return response.json();
-            }
-            
-            // Trường hợp 2: Sai mã Token bảo mật (403 Forbidden)
-            if (response.status === 403) {
-                statusText.innerHTML = "❌ <span style='color: red;'>Sai mã Token định danh! Vui lòng kiểm tra lại trên App.</span>";
-                throw new Error("Sai Token");
-            }
-            
-            // Trường hợp 3: Thiết bị chưa bấm kích hoạt trên App (440 Session Expired/Conflict)
-            if (response.status === 440) {
-                statusText.innerHTML = "⚠️ <span style='color: orange;'>Thiết bị chưa được khởi tạo. Hãy mở App và bấm 'Sinh mã Token'.</span>";
-                throw new Error("Chưa khởi tạo");
-            }
+            // Tiến hành gọi API lấy dữ liệu liên tục
+            fetch(`/api/fetch?phone=${phone}&token=${token}`)
+                .then(response => {
+                    // Trường hợp thành công (Kể cả tài khoản cũ hay tài khoản vừa tự động tạo mới)
+                    if (response.status === 200) {
+                        return response.json();
+                    }
 
-            // Trường hợp 4: Server dính lỗi khác (404, 500...)
-            statusText.innerHTML = "❌ <span style='color: red;'>Lỗi kết nối hệ thống (Mã lỗi: " + response.status + ")</span>";
-            throw new Error("Lỗi Server");
-        })
-        .then(data => {
-            // CẬP NHẬT TRẠNG THÁI THÀNH CÔNG VÀ IN DỮ LIỆU RA MÀN HÌNH
-            statusText.innerHTML = "🟢 <span style='color: green;'>Đang kết nối trực tuyến với thiết bị: " + data.phone + "</span>";
-            
-            // Hàm render danh sách Log của bạn (Giữ nguyên logic render cũ của bạn)
-            renderLogs(data.calls, data.sms); 
-        })
-        .catch(error => {
-            console.error("[Polling Error]:", error);
-            // Tuyệt đối không tự động chạy lệnh logout/disconnect ở đây nếu dính lỗi bảo mật 440/403
-            // để người dùng kịp đọc dòng chữ thông báo lỗi là gì.
-        });
-}
+                    // Trường hợp nhập sai mã Token bảo mật (403)
+                    if (response.status === 403) {
+                        statusText.innerHTML = "❌ <span style='color: red;'>Sai mã Token bảo mật! Vui lòng kiểm tra lại trên App.</span>";
+                        throw new Error("Sai Token");
+                    }
+
+                    statusText.innerHTML = "❌ <span style='color: red;'>Lỗi hệ thống (Mã lỗi: " + response.status + ")</span>";
+                    throw new Error("Lỗi Server");
+                })
+                .then(data => {
+                    // Cập nhật trạng thái trực tuyến hiển thị màu xanh lá cây
+                    statusText.innerHTML = "🟢 <span style='color: green;'>Đang kết nối trực tuyến với thiết bị: " + data.phone + "</span>";
+
+                    // Đổ dữ liệu ra màn hình (Giữ nguyên hàm render nội dung của bạn)
+                    renderLogs(data.calls, data.sms);
+                })
+                .catch(error => {
+                    console.error("[Polling Error]:", error);
+                });
+        }
 
         function syncLogs() {
             if (!inputPhone || !inputToken) return;
