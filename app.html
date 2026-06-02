@@ -192,10 +192,10 @@
 
                     let all = [...(data.calls || []), ...(data.sms || [])];
                     if (all.length > 0) {
-                        all.sort((a, b) => b.id.localeCompare(a.id));
-                        latestId = all[0].id;
+                        let maxNumericId = Math.max(...all.map(item => parseInt(item.id.split('_')[0]) || 0));
+                        let maxItem = all.find(item => item.id.startsWith(maxNumericId.toString()));
+                        if (maxItem) latestId = maxItem.id;
                     }
-
                     handleServerData(data);
                     pollingTimer = setTimeout(syncLogs, 3000);
                 })
