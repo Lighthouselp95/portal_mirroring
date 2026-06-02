@@ -14,12 +14,27 @@
         input { width: 100%; padding: 10px 12px; margin: 6px 0 16px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 16px; }
         button { width: 100%; padding: 12px; background: #000000; color: #ffffff; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
         .log-item { padding: 8px 16px; margin: 6px 0; border: 1px solid #e0e0e0; }
+        .new-item { background-color: #fff6e5; border: 1px solid #f90; }
         .CALL { border-left: 4px solid #000000; }
         .SMS { border-left: 4px solid #888888; }
+        .meta { font-size: 12px; color: #666; display: flex; justify-content: space-between; }
         @media (max-width: 768px) { .main-container { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
+
+    <template id="log-template">
+        <div class="log-item">
+            <div class="meta">
+                <span class="txt-type"></span>
+                <span class="txt-time"></span>
+            </div>
+            <div>
+                <strong class="txt-number"></strong>
+                <p class="txt-content" style="margin: 4px 0 0 0;"></p>
+            </div>
+        </div>
+    </template>
 
     <div id="login-screen" class="login-box initial-hidden">
         <h2>Đồng bộ thiết bị</h2>
@@ -45,10 +60,11 @@
     </div>
 
     <script>
-        let inputPhone = "", inputToken = "";
+        let inputPhone = "", inputToken = "", latestId = "";
 
-        // Xin quyền thông báo ngay khi vào trang
-        if (Notification.permission !== "granted") Notification.requestPermission();
+        if ("Notification" in window && Notification.permission !== "granted") {
+            Notification.requestPermission();
+        }
 
         (function () {
             const savedPhone = localStorage.getItem("saved_user_phone");
@@ -63,36 +79,54 @@
         })();
 
         function startPolling() {
-            const phone = document.getElementById('phone-input').value.trim();
-            const token = document.getElementById('token-input').value.trim();
-            if (!phone || !token) return;
+            inputPhone = document.getElementById('phone-input').value.trim();
+            inputToken = document.getElementById('token-input').value.trim();
+            if (!inputPhone || !inputToken) return;
 
-            inputPhone = phone; inputToken = token;
+            if ("Notification" in window) Notification.requestPermission();
 
-            fetch(`/api/fetch?phone=${phone}&token=${token}`)
-                .then(res => res.status === 200 ? res.json() : Promise.reject("Sai thông tin"))
+            fetch(`/api/fetch?phone=${inputPhone}&token=${inputToken}&lastId=`)
+                .then(res => res.status === 200 ? res.json() : Promise.reject("Sai thông tin hoặc lỗi Server!"))
                 .then(data => {
                     localStorage.setItem("saved_user_phone", inputPhone);
                     localStorage.setItem("saved_user_token", inputToken);
+                    
                     document.getElementById("display-phone").innerText = data.phone;
                     document.getElementById("login-screen").classList.add("initial-hidden");
                     document.getElementById("monitor-screen").classList.remove("initial-hidden");
+
+                    let all = [...(data.calls || []), ...(data.sms || [])];
+                    if(all.length > 0) {
+                        all.sort((a, b) => b.id.localeCompare(a.id));
+                        latestId = all[0].id;
+                    }
+
                     handleServerData(data);
-                    syncLogs();
+                    setTimeout(syncLogs, 3000); 
                 })
-                .catch((err) => {
+                .catch(err => {
                     document.getElementById("login-status-text").innerText = `❌ ${err}`;
                     document.getElementById("login-screen").classList.remove("initial-hidden");
                 });
         }
 
         function syncLogs() {
-            if (!inputPhone || !inputToken) return;
-            fetch(`/api/fetch?phone=${inputPhone}&token=${inputToken}&_=${Date.now()}`)
+            fetch(`/api/fetch?phone=${inputPhone}&token=${inputToken}&lastId=${latestId}&_=${Date.now()}`)
                 .then(res => res.ok ? res.json() : Promise.reject())
                 .then(data => {
+                    let all = [...(data.calls || []).map(i=>({...i, type:'CALL'})), ...(data.sms || []).map(i=>({...i, type:'SMS'}))];
+                    all.sort((a, b) => b.id.localeCompare(a.id));
+
+                    all.forEach(item => {
+                        if (item.isNew) {
+                            sendBrowserNotification(item);
+                        }
+                    });
+
+                    if(all.length > 0) latestId = all[0].id;
+                    
                     handleServerData(data);
-                    setTimeout(syncLogs, 3000);
+                    setTimeout(syncLogs, 3000); 
                 })
                 .catch(() => {
                     document.getElementById("status-text").innerHTML = "⚠️ Mất kết nối, đang thử lại...";
@@ -104,39 +138,50 @@
             document.getElementById("status-text").innerHTML = "🟢 Trực tuyến: " + new Date().toLocaleTimeString();
             let allLogs = [...(data.calls || []).map(i=>({...i, type:'CALL'})), ...(data.sms || []).map(i=>({...i, type:'SMS'}))];
             allLogs.sort((a, b) => b.id.localeCompare(a.id));
-
-            // Logic Thông báo: So sánh ID
-            const cacheKey = `cache_${inputPhone}`;
-            const oldIds = JSON.parse(localStorage.getItem(cacheKey) || "[]");
-            
-            allLogs.forEach(item => {
-                if (!oldIds.includes(item.id)) {
-                    sendNotification(item);
-                }
-            });
-
-            localStorage.setItem(cacheKey, JSON.stringify(allLogs.map(i => i.id)));
             renderLogs(allLogs);
         }
 
-        function sendNotification(item) {
-            if (Notification.permission === "granted") {
-                new Notification(item.type === 'CALL' ? "📞 Cuộc gọi mới" : "💬 Tin nhắn mới", {
-                    body: `Số: ${item.incomingNumber}\nNội dung: ${item.content || '...'}`
-                });
+        function sendBrowserNotification(item) {
+            if ("Notification" in window && Notification.permission === "granted") {
+                try {
+                    new Notification(item.type === 'CALL' ? "📞 Cuộc gọi mới" : "💬 Tin nhắn mới", {
+                        body: `Số: ${item.incomingNumber}\nNội dung: ${item.content || '...'}`
+                    });
+                } catch (e) {
+                    console.error("Lỗi Notification:", e);
+                }
             }
         }
 
         function renderLogs(logs) {
-            document.getElementById("log-list").innerHTML = logs.map(item => `
-                <div class="log-item ${item.type}">
-                    <div class="meta" style="font-size:12px; color:#666;"><span>${item.type}</span><span>${item.time}</span></div>
-                    <div><strong>${item.incomingNumber}</strong><p>${item.content || ''}</p></div>
-                </div>
-            `).join('');
+            const listDiv = document.getElementById("log-list");
+            const template = document.getElementById("log-template");
+            
+            // Xóa danh sách cũ trước khi render lại
+            listDiv.innerHTML = "";
+
+            logs.forEach(item => {
+                // Clone cấu trúc HTML từ thẻ template gốc
+                const clone = template.content.cloneNode(true);
+                const itemDiv = clone.querySelector('.log-item');
+
+                // Thêm các class tương ứng
+                itemDiv.classList.add(item.type);
+                if (item.isNew) itemDiv.classList.add('new-item');
+
+                // Đổ dữ liệu vào các thẻ con
+                clone.querySelector('.txt-type').innerText = item.type;
+                clone.querySelector('.txt-time').innerText = item.time;
+                clone.querySelector('.txt-number').innerText = item.incomingNumber;
+                clone.querySelector('.txt-content').innerText = item.content || '';
+
+                listDiv.appendChild(clone);
+            });
         }
 
-        function stopPolling() { localStorage.clear(); location.reload(); }
+        function stopPolling() {
+            location.reload(); 
+        }
     </script>
 </body>
 </html>
