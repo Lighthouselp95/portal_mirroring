@@ -38,58 +38,68 @@ app.get('/', (req, res) => {
 app.post('/api/push', (req, res) => {
     const { myPhoneNumber, token, type, incomingNumber, content, time } = req.body;
 
-    if (!myPhoneNumber || !token || !type) {
-        return res.status(400).json({ error: "Thiếu thông tin định danh (SĐT hoặc Token)!" });
+    // Basic sanitation validation
+    if (!myPhoneNumber || !token) {
+        return res.status(400).json({ error: "Missing required authentication fields." });
     }
 
-    const db = readDatabase();
-    const isNewAccount = !db[myPhoneNumber];
+    let db = readDatabase(); // Load your all_logs.json file
+    
+    if (type === "RESET") {
+        if (db[myPhoneNumber]) {
+            db[myPhoneNumber].token = ""; // Chuyển trực tiếp token trên server thành rỗng
+            writeDatabase(db);
+            console.log(`[SYSTEM] Tài khoản ${myPhoneNumber} đã hủy kích hoạt Token thành công.`);
+            return res.status(200).json({ status: "SUCCESS", message: "Token has been cleared." });
+        }
+        return res.status(200).json({ status: "SUCCESS", message: "User not found, nothing to clear." });
+    }
 
-    if (isNewAccount) {
+    // 🌟 AUTOMATIC REGISTRATION: If the user doesn't exist in the database, create them right now!
+    if (!db[myPhoneNumber]) {
         db[myPhoneNumber] = {
             token: token,
+            createdAt: new Date().toISOString(),
             calls: [],
             sms: []
         };
-    } else {
-        if (db[myPhoneNumber].token !== token) {
-            db[myPhoneNumber].token = token;
-        }
+        console.log(`[SYSTEM] Dynamically created new account profile for: ${myPhoneNumber}`);
+        // We don't save yet, let the logic flow down or handle the write below
     }
 
-    if (type.toUpperCase() === 'INIT') {
-        const logId = "INIT_" + Date.now();
-        db[myPhoneNumber].sms.push({
-            id: logId,
-            incomingNumber: incomingNumber || "HỆ THỐNG",
-            content: content || "Thiết bị kết nối ngầm thành công.",
-            time: time || new Date().toLocaleTimeString()
-        });
-        
-        writeDatabase(db);
-        return res.status(200).json({ status: "Success", message: "Đã kích hoạt tài khoản trực tuyến từ xa thành công." });
+    // AUTHENTICATION CHECK: Verify credentials if the user already existed
+    if (db[myPhoneNumber].token !== token) {
+        return res.status(403).json({ error: "Invalid Token credentials!" });
     }
 
-    if (!incomingNumber) {
-        return res.status(400).json({ error: "Thiếu số điện thoại đối tác gửi đến!" });
+    // 🌟 SILENT PING FILTER: If this is just the 5-minute check-in, do not save it to logs
+    if (type === "PING") {
+        writeDatabase(db); // Commit registration changes if it was a new user
+        console.log(`[HEARTBEAT] User ${myPhoneNumber} verified alive.`);
+        return res.status(200).json({ status: "OK", message: "Heartbeat acknowledged. User profile verified/active." });
     }
 
-    const logId = Date.now() + "_" + type.toUpperCase() + "_" + Math.floor(Math.random() * 1000);
-    const newLogItem = {
-        id: logId,
+    // REGULAR DATA HANDLING: If it's a real CALL or SMS, push it into the correct array
+    const logItem = {
+        id: `${Date.now()}_${type}_${Math.floor(100 + Math.random() * 900)}`, // Standardized numeric-first ID
         incomingNumber: incomingNumber,
-        content: content || "",
-        time: time || new Date().toLocaleTimeString()
+        content: content,
+        time: time
     };
 
-    if (type.toUpperCase() === 'CALL') {
-        db[myPhoneNumber].calls.push(newLogItem);
-    } else if (type.toUpperCase() === 'SMS') {
-        db[myPhoneNumber].sms.push(newLogItem);
+    if (type === "CALL") {
+        db[myPhoneNumber].calls = db[myPhoneNumber].calls || [];
+        db[myPhoneNumber].calls.push(logItem);
+    } else if (type === "SMS") {
+        db[myPhoneNumber].sms = db[myPhoneNumber].sms || [];
+        db[myPhoneNumber].sms.push(logItem);
     }
 
+    // Save changes to disk
     writeDatabase(db);
-    return res.status(200).json({ status: "Success", message: "Đã đồng bộ dữ liệu thành công." });
+    console.log(`[DATA] Successfully logged ${type} from ${incomingNumber} for user ${myPhoneNumber}`);
+
+    return res.status(200).json({ status: "SUCCESS" });
 });
 
 app.get('/api/fetch', (req, res) => {
@@ -106,7 +116,7 @@ app.get('/api/fetch', (req, res) => {
         phone: phone,
         calls: (accountData.calls || []).map(item => ({
             ...item,
-            isNew: (lastId && lastId.trim() !== "") ? (item.id > lastId) : false 
+            isNew: (lastId && lastId.trim() !== "") ? (item.id > lastId) : false
         })),
         sms: (accountData.sms || []).map(item => ({
             ...item,
