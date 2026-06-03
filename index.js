@@ -38,50 +38,45 @@ app.get('/', (req, res) => {
 app.post('/api/push', (req, res) => {
     const { myPhoneNumber, token, type, incomingNumber, content, time } = req.body;
 
-    // Basic sanitation validation
-    if (!myPhoneNumber || !token) {
-        return res.status(400).json({ error: "Missing required authentication fields." });
+    // Kiểm tra tối thiểu phải có Số điện thoại
+    if (!myPhoneNumber) {
+        return res.status(400).json({ error: "Thiếu thông tin Số điện thoại thiết bị!" });
     }
 
-    let db = readDatabase(); // Load your all_logs.json file
-    
-    if (type === "RESET") {
-        if (db[myPhoneNumber]) {
-            db[myPhoneNumber].token = ""; // Chuyển trực tiếp token trên server thành rỗng
-            writeDatabase(db);
-            console.log(`[SYSTEM] Tài khoản ${myPhoneNumber} đã hủy kích hoạt Token thành công.`);
-            return res.status(200).json({ status: "SUCCESS", message: "Token has been cleared." });
-        }
-        return res.status(200).json({ status: "SUCCESS", message: "User not found, nothing to clear." });
-    }
+    let db = readDatabase(); // Đọc file all_logs.json
 
-    // 🌟 AUTOMATIC REGISTRATION: If the user doesn't exist in the database, create them right now!
+    // 1. Nếu chưa có tài khoản trên Server -> Khởi tạo shell mới
     if (!db[myPhoneNumber]) {
         db[myPhoneNumber] = {
-            token: token,
+            token: token || "", // Lấy theo Android, nếu Android trống thì Server trống
             createdAt: new Date().toISOString(),
             calls: [],
             sms: []
         };
-        console.log(`[SYSTEM] Dynamically created new account profile for: ${myPhoneNumber}`);
-        // We don't save yet, let the logic flow down or handle the write below
+        console.log(`[SYSTEM] Khởi tạo tài khoản mới cho: ${myPhoneNumber}`);
+    } 
+    
+    // 2. 🌟 ĐỒNG BỘ THEO ANDROID (QUYỀN CAO HƠN): 
+    // Nếu tài khoản đã tồn tại nhưng Token trên Server khác với Token Android gửi lên
+    else if (db[myPhoneNumber].token !== token) {
+        console.log(`[SYNC] Token bị lệch ở request [${type}]. Cập nhật Token của ${myPhoneNumber}: "${db[myPhoneNumber].token}" -> "${token}"`);
+        db[myPhoneNumber].token = token || ""; // Cập nhật theo Android (chấp nhận cả chuỗi rỗng)
     }
 
-    // AUTHENTICATION CHECK: Verify credentials if the user already existed a
-    if (db[myPhoneNumber].token !== token) {
-        return res.status(403).json({ error: "Invalid Token credentials!" });
+    // ==========================================
+    // SAU KHI ĐỒNG BỘ TOKEN XONG, XỬ LÝ THEO LOẠI REQUEST
+    // ==========================================
+
+    // Kịch bản A: Request xóa mã (RESET) hoặc Kiểm tra định kỳ (PING)
+    if (type === "RESET" || type === "PING") {
+        writeDatabase(db); // Lưu lại thay đổi Token vào file JSON
+        console.log(`[HEARTBEAT] Thiết bị ${myPhoneNumber} xử lý lệnh ${type} thành công.`);
+        return res.status(200).json({ status: "SUCCESS", message: `Đã đồng bộ trạng thái ${type}.` });
     }
 
-    // 🌟 SILENT PING FILTER: If this is just the 5-minute check-in, do not save it to logs
-    if (type === "PING") {
-        writeDatabase(db); // Commit registration changes if it was a new user
-        console.log(`[HEARTBEAT] User ${myPhoneNumber} verified alive.`);
-        return res.status(200).json({ status: "OK", message: "Heartbeat acknowledged. User profile verified/active." });
-    }
-
-    // REGULAR DATA HANDLING: If it's a real CALL or SMS, push it into the correct array
+    // Kịch bản B: Request log dữ liệu thực tế (CALL hoặc SMS)
     const logItem = {
-        id: `${Date.now()}_${type}_${Math.floor(100 + Math.random() * 900)}`, // Standardized numeric-first ID
+        id: `${Date.now()}_${type}_${Math.floor(100 + Math.random() * 900)}`,
         incomingNumber: incomingNumber,
         content: content,
         time: time
@@ -95,23 +90,31 @@ app.post('/api/push', (req, res) => {
         db[myPhoneNumber].sms.push(logItem);
     }
 
-    // Save changes to disk
-    writeDatabase(db);
-    console.log(`[DATA] Successfully logged ${type} from ${incomingNumber} for user ${myPhoneNumber}`);
-
+    writeDatabase(db); // Lưu toàn bộ dữ liệu vào ổ đĩa
+    console.log(`[DATA] Đã ghi nhận log ${type} từ số ${incomingNumber} cho user ${myPhoneNumber}`);
+    
     return res.status(200).json({ status: "SUCCESS" });
 });
 
 app.get('/api/fetch', (req, res) => {
     const { phone, token, lastId } = req.query;
 
+    // 🌟 BỔ SUNG: Chặn ngay từ vòng gửi xe nếu user trên Web gửi token rỗng, trống hoặc không truyền
+    if (!token || token.trim() === "") {
+        console.log(`[WEB REJECT] Từ chối fetch dữ liệu của số ${phone} vì Web gửi Token rỗng.`);
+        return res.status(401).json({ error: "Token không được để trống!" });
+    }
+
     let db = readDatabase();
+
+    // Kiểm tra tài khoản tồn tại và khớp mã Token (Lúc này chắc chắn token gửi lên không rỗng)
     if (!db[phone] || db[phone].token !== token) {
         return res.status(403).json({ error: "Sai thông tin hoặc chưa kích hoạt!" });
     }
 
     const accountData = db[phone];
 
+    // Trả về dữ liệu an toàn khi mọi điều kiện đã thỏa mãn
     return res.status(200).json({
         phone: phone,
         calls: (accountData.calls || []).map(item => ({
