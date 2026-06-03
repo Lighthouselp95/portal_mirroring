@@ -67,7 +67,7 @@ app.post('/api/push', (req, res) => {
         // We don't save yet, let the logic flow down or handle the write below
     }
 
-    // AUTHENTICATION CHECK: Verify credentials if the user already existed
+    // AUTHENTICATION CHECK: Verify credentials if the user already existed a
     if (db[myPhoneNumber].token !== token) {
         return res.status(403).json({ error: "Invalid Token credentials!" });
     }
