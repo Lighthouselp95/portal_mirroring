@@ -7,6 +7,24 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+console.log("START", new Date().toISOString());
+
+process.on("SIGTERM", () => {
+    console.log("SIGTERM RECEIVED");
+});
+
+process.on("SIGINT", () => {
+    console.log("SIGINT RECEIVED");
+});
+
+process.on("uncaughtException", err => {
+    console.error("UNCAUGHT", err);
+});
+
+process.on("unhandledRejection", err => {
+    console.error("UNHANDLED", err);
+});
+
 const DB_FILE = path.join(__dirname, 'all_logs.json');
 
 function readDatabase() {
