@@ -287,7 +287,7 @@
                     // CHUẨN HÓA LUỒNG: Đẩy thẳng mảng gộp thô sang cho handleServerData tự xử lý sắp xếp và vẽ UI
                     handleServerData(all);
 
-                    pollingTimer = setTimeout(syncLogs, 5000);
+                    pollingTimer = setTimeout(syncLogs, 7000);
                 })
                 .catch(() => {
                     document.getElementById("status-text").innerHTML = "⚠️ Mất kết nối, đang thử lại...";
