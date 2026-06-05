@@ -332,7 +332,7 @@
                     const title = item.type === 'CALL' ? "📞 Cuộc gọi mới" : "💬 Tin nhắn mới";
                     
                     new Notification(title, {
-                        body: `Số: ${item.incomingNumber}                    ${formattedTime}\n${item.content || '...'}`,
+                        body: `${item.incomingNumber}                    ${formattedTime}\n${item.content || '...'}`,
                         silent: false,
                         requireInteraction: true
                     });
