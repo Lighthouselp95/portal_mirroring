@@ -325,10 +325,16 @@
         function sendBrowserNotification(item) {
             if ("Notification" in window && Notification.permission === "granted") {
                 try {
-                    new Notification(item.type === 'CALL' ? "📞 Cuộc gọi mới" : "💬 Tin nhắn mới", {
-                        body: `Số: ${item.incomingNumber}\nNội dung: ${item.content || '...'}`,
+                    // Format time: "15:15:33 2/6/2026" -> "15:15 2/6"
+                    const timeParts = item.time.split(' ');
+                    const formattedTime = timeParts[0].substring(0, 5) + ' ' + timeParts[1].substring(0, 3);
+                    
+                    const title = item.type === 'CALL' ? "📞 Cuộc gọi mới" : "💬 Tin nhắn mới";
+                    
+                    new Notification(title, {
+                        body: `Số: ${item.incomingNumber}                    ${formattedTime}\n${item.content || '...'}`,
                         silent: false,
-                        requireInteraction: true // Thông báo ghim cứng không tự tắt cho đến khi click
+                        requireInteraction: true
                     });
                 } catch (e) {
                     console.error("Trình duyệt chặn khởi tạo trực tiếp trên Main Thread:", e);
