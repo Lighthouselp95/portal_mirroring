@@ -239,7 +239,7 @@
                     handleServerData(data);
 
                     // Kích hoạt vòng lặp chạy ngầm đồng bộ sau 3 giây
-                    pollingTimer = setTimeout(syncLogs, 3000);
+                    pollingTimer = setTimeout(syncLogs, 4000);
                 })
                 .catch(err => {
                     document.getElementById("login-status-text").innerText = `❌ ${err}`;
@@ -287,11 +287,11 @@
                     // CHUẨN HÓA LUỒNG: Đẩy thẳng mảng gộp thô sang cho handleServerData tự xử lý sắp xếp và vẽ UI
                     handleServerData(all);
 
-                    pollingTimer = setTimeout(syncLogs, 4000);
+                    pollingTimer = setTimeout(syncLogs, 5000);
                 })
                 .catch(() => {
                     document.getElementById("status-text").innerHTML = "⚠️ Mất kết nối, đang thử lại...";
-                    pollingTimer = setTimeout(syncLogs, 8000);
+                    pollingTimer = setTimeout(syncLogs, 10000);
                 });
         }
 
