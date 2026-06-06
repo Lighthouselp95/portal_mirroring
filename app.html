@@ -347,7 +347,7 @@
             if ("Notification" in window && Notification.permission === "granted") {
                 try {
                     const title = item.type === 'CALL' ? "📞 Cuộc gọi mới" : "💬 Tin nhắn mới";
-                    const notificationBody = `Số: ${item.incomingNumber}\nLúc: ${item.time}\nID: ${item.id}\nNội dung: ${item.content || '...'}`;
+                    const notificationBody = `Số: ${item.incomingNumber}\nLúc: ${item.time}\nNội dung: ${item.content || '...'}`;
 
                     const uniqueTag = `${item.id}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
