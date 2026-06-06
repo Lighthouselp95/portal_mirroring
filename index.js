@@ -146,6 +146,21 @@ app.get('/api/fetch', (req, res) => {
     });
 });
 
+app.post('/api/clear', (req, res) => {
+    const { phone, token } = req.body;
+    if (!phone || !token) return res.status(400).json({ error: "Thiếu thông tin!" });
+
+    let db = readDatabase();
+    if (db[phone] && db[phone].token === token) {
+        db[phone].calls = [];
+        db[phone].sms = [];
+        writeDatabase(db);
+        console.log(`[SYSTEM] Đã xóa sạch dữ liệu của số ${phone}`);
+        return res.status(200).json({ status: "SUCCESS" });
+    }
+    return res.status(403).json({ error: "Xác thực thất bại!" });
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`=== SERVER GƯƠNG CHIẾU INFORMINI ĐANG CHẠY TẠI PORT: ${PORT} ===`);

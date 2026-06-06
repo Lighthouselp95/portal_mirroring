@@ -235,8 +235,8 @@
                     // CHẶN THÔNG BÁO LẦN ĐẦU: Lưu toàn bộ ID này vào Database Local xem như tin cũ lịch sử
                     saveToLocalDB(allIds);
 
-                    // Render giao diện (Tất cả hiển thị màu trắng bình thường vì thuộc về quá khứ)
-                    handleServerData(data);
+                    // ĐÃ ẨN: Không render tin cũ khi vừa kết nối để chỉ hiện tin mới
+                    // handleServerData(data);
 
                     // Kích hoạt vòng lặp chạy ngầm đồng bộ sau 3 giây
                     pollingTimer = setTimeout(syncLogs, 4000);
@@ -354,15 +354,16 @@
             listDiv.innerHTML = "";
 
             logs.forEach(item => {
+                // CHỈ HIỂN THỊ: Nếu ID nằm trong danh sách tin mới bắt được ở phiên này
+                if (!sessionNewIds.has(item.id)) return;
+
                 const clone = template.content.cloneNode(true);
                 const itemDiv = clone.querySelector('.log-item');
 
                 itemDiv.classList.add(item.type);
 
-                // KIỂM TRA UI: Nếu ID nằm trong danh sách tin mới bắt được ở phiên này -> Thêm nền màu vàng rực
-                if (sessionNewIds.has(item.id)) {
-                    itemDiv.classList.add('new-item');
-                }
+                // Thêm nền màu vàng rực cho tin mới
+                itemDiv.classList.add('new-item');
 
                 clone.querySelector('.txt-type').innerText = item.type;
                 clone.querySelector('.txt-time').innerText = item.time;
@@ -376,14 +377,30 @@
         /**
          * ĐĂNG XUẤT VÀ NGẮT ĐỒNG BỘ
          */
-        function stopPolling() {
+        async function stopPolling() {
             if (pollingTimer) clearTimeout(pollingTimer);
+            
+            // 1. Gửi yêu cầu xóa dữ liệu trên Server
+            try {
+                await fetch('/api/clear', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phone: inputPhone, token: inputToken })
+                });
+            } catch (e) { console.error("Không thể xóa dữ liệu server:", e); }
+
+            // 2. Dọn dẹp dữ liệu local
+            const dbKey = `db_known_ids_${inputPhone}`;
+            localStorage.removeItem(dbKey);
             localStorage.removeItem("saved_user_phone");
             localStorage.removeItem("saved_user_token");
+            
             sessionNewIds.clear();
+            document.getElementById("log-list").innerHTML = "";
+            
             document.getElementById("monitor-screen").classList.add("initial-hidden");
             document.getElementById("login-screen").classList.remove("initial-hidden");
-            document.getElementById("status-text").innerHTML = "🔴 Đã ngắt kết nối và đăng xuất.";
+            document.getElementById("status-text").innerHTML = "🔴 Đã ngắt kết nối và xóa sạch dữ liệu.";
         }
     </script>
 </body>
