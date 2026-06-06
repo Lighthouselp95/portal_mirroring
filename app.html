@@ -265,7 +265,6 @@
                     let newlyDetectedIds = [];
 
                     all.forEach(item => {
-                        // CHUẨN HÓA: Nếu là tin nhắn mồi hệ thống INIT, tự động coi là tin cũ, không xử lý thông báo/bôi màu
                         if (item.id.startsWith("INIT_")) return;
 
                         // KIỂM TRA DATABASE LOCAL: Nếu ID chưa từng xuất hiện trong máy Client!
@@ -284,7 +283,7 @@
                         saveToLocalDB(newlyDetectedIds);
                     }
 
-                    // CHUẨN HÓA LUỒNG: Đẩy thẳng mảng gộp thô sang cho handleServerData tự xử lý sắp xếp và vẽ UI
+                    // Cập nhật lại giao diện
                     handleServerData(all);
 
                     pollingTimer = setTimeout(syncLogs, 7000);
@@ -297,7 +296,6 @@
 
         /**
          * ĐIỀU PHỐI DỮ LIỆU RA GIAO DIỆN
-         * Nhận đầu vào là mảng đã gộp phẳng (Array) hoặc Object data gốc từ server đổ về
          */
         function handleServerData(dataInput) {
             document.getElementById("status-text").innerHTML = "🟢 Trực tuyến: " + new Date().toLocaleTimeString();
@@ -309,11 +307,14 @@
                 allLogs = [...(dataInput.calls || []).map(i => ({ ...i, type: 'CALL' })), ...(dataInput.sms || []).map(i => ({ ...i, type: 'SMS' }))];
             }
 
-            // Thực hiện sắp xếp số học ĐƠN NHẤT một lần tại đây trước khi vẽ UI
+            // Sắp xếp lại log theo ID (thường bắt đầu bằng timestamp)
             allLogs.sort((a, b) => {
-                let timeA = parseInt(a.id.replace("INIT_", "").split("_")[0]) || 0;
-                let timeB = parseInt(b.id.replace("INIT_", "").split("_")[0]) || 0;
-                return timeB - timeA;
+                // Hỗ trợ cả ID dạng 123456_CALL và CALL_123456
+                const getTs = (id) => {
+                    const parts = id.replace("INIT_", "").split("_");
+                    return parseInt(parts[0]) || parseInt(parts[1]) || 0;
+                };
+                return getTs(b.id) - getTs(a.id);
             });
 
             renderLogs(allLogs);
@@ -325,21 +326,21 @@
         function sendBrowserNotification(item) {
             if ("Notification" in window && Notification.permission === "granted") {
                 try {
-                    // Format time: "15:15:33 2/6/2026" -> "15:15 2/6"
-                    const timeParts = item.time.split(' ');
-                    const formattedTime = timeParts[0].substring(0, 5) + ' ' + timeParts[1].substring(0, 3);
-                    
                     const title = item.type === 'CALL' ? "📞 Cuộc gọi mới" : "💬 Tin nhắn mới";
-                    
+                    const notificationBody = `Số: ${item.incomingNumber}\nLúc: ${item.time}\nNội dung: ${item.content || '...'}`;
+
+                    // Tạo tag duy nhất cho mỗi thông báo bằng cách thêm timestamp hiện tại
+                    const uniqueTag = `${item.id}-${Date.now()}`;
+
                     new Notification(title, {
-                        body: `${item.incomingNumber}                    ${formattedTime}\n${item.content || '...'}`,
+                        body: notificationBody,
+                        tag: uniqueTag, 
+                        renotify: true,
                         silent: false,
-                        requireInteraction: true,
-                        tag: item.id, 
-                        renotify: true
+                        requireInteraction: false 
                     });
                 } catch (e) {
-                    console.error("Trình duyệt chặn khởi tạo trực tiếp trên Main Thread:", e);
+                    console.error("Lỗi thông báo:", e);
                 }
             }
         }
