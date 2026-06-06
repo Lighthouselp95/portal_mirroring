@@ -232,11 +232,11 @@
                     // Lấy ra danh sách toàn bộ ID cũ này
                     let allIds = all.map(item => item.id);
 
-                    // CHẶN THÔNG BÁO LẦN ĐẦU: Lưu toàn bộ ID này vào Database Local xem như tin cũ lịch sử
+                    // Lưu toàn bộ ID hiện tại vào danh sách "đã biết" để không bị bôi vàng/thông báo tin cũ
                     saveToLocalDB(allIds);
 
-                    // ĐÃ ẨN: Không render tin cũ khi vừa kết nối để chỉ hiện tin mới
-                    // handleServerData(data);
+                    // Vẫn render dữ liệu hiện có lên màn hình để người dùng thấy lịch sử (không bôi vàng)
+                    handleServerData(data);
 
                     // Kích hoạt vòng lặp chạy ngầm đồng bộ sau 3 giây
                     pollingTimer = setTimeout(syncLogs, 4000);
@@ -354,16 +354,15 @@
             listDiv.innerHTML = "";
 
             logs.forEach(item => {
-                // CHỈ HIỂN THỊ: Nếu ID nằm trong danh sách tin mới bắt được ở phiên này
-                if (!sessionNewIds.has(item.id)) return;
-
                 const clone = template.content.cloneNode(true);
                 const itemDiv = clone.querySelector('.log-item');
 
                 itemDiv.classList.add(item.type);
 
-                // Thêm nền màu vàng rực cho tin mới
-                itemDiv.classList.add('new-item');
+                // KIỂM TRA: Nếu ID nằm trong danh sách tin mới của phiên này -> Bôi vàng
+                if (sessionNewIds.has(item.id)) {
+                    itemDiv.classList.add('new-item');
+                }
 
                 clone.querySelector('.txt-type').innerText = item.type;
                 clone.querySelector('.txt-time').innerText = item.time;
