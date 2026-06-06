@@ -335,7 +335,8 @@
                         body: `${item.incomingNumber}                    ${formattedTime}\n${item.content || '...'}`,
                         silent: false,
                         requireInteraction: true,
-                        tag: item.id
+                        tag: item.id, 
+                        renotify: true
                     });
                 } catch (e) {
                     console.error("Trình duyệt chặn khởi tạo trực tiếp trên Main Thread:", e);
