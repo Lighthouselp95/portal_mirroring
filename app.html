@@ -334,7 +334,8 @@
                     new Notification(title, {
                         body: `${item.incomingNumber}                    ${formattedTime}\n${item.content || '...'}`,
                         silent: false,
-                        requireInteraction: true
+                        requireInteraction: true,
+                        tag: item.id
                     });
                 } catch (e) {
                     console.error("Trình duyệt chặn khởi tạo trực tiếp trên Main Thread:", e);
