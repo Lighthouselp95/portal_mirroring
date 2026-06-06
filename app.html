@@ -303,11 +303,11 @@
                     // Cập nhật lại giao diện
                     handleServerData(all);
 
-                    pollingTimer = setTimeout(syncLogs, 7000);
+                    pollingTimer = setTimeout(syncLogs, 12000);
                 })
                 .catch(() => {
                     document.getElementById("status-text").innerHTML = "⚠️ Mất kết nối, đang thử lại...";
-                    pollingTimer = setTimeout(syncLogs, 10000);
+                    pollingTimer = setTimeout(syncLogs, 20000);
                 });
         }
 
