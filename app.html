@@ -229,16 +229,31 @@
                     document.getElementById("monitor-screen").classList.remove("initial-hidden");
 
                     // Gộp toàn bộ lịch sử cuộc gọi và SMS từ server trả về
-                    let all = [...(data.calls || []), ...(data.sms || [])];
+                    let all = [...(data.calls || []).map(i => ({ ...i, type: 'CALL' })), ...(data.sms || []).map(i => ({ ...i, type: 'SMS' }))];
 
                     // Lấy ra danh sách toàn bộ ID cũ này
                     let allIds = all.map(item => item.id);
 
-                    // Lưu toàn bộ ID hiện tại vào danh sách "đã biết" để không bị bôi vàng/thông báo tin cũ
-                    saveToLocalDB(allIds);
+                    let knownIds = new Set(getLocalDB());
+                    const dbInitializedKey = `db_initialized_${inputPhone}`;
+                    const hasInitializedLocalDB = localStorage.getItem(dbInitializedKey) === "true";
+
+                    if (!hasInitializedLocalDB) {
+                        // Lần đầu đăng nhập: lưu toàn bộ ID hiện tại để không báo lại lịch sử cũ
+                        saveToLocalDB(allIds);
+                        localStorage.setItem(dbInitializedKey, "true");
+                    } else {
+                        // Mở lại tab/khôi phục phiên: chỉ báo những ID chưa từng thấy trước đó
+                        let missedItems = all.filter(item => !item.id.startsWith("INIT_") && !knownIds.has(item.id));
+                        missedItems.forEach(item => {
+                            queueBrowserNotification(item);
+                            sessionNewIds.add(item.id);
+                        });
+                        saveToLocalDB(missedItems.map(item => item.id));
+                    }
 
                     // Vẫn render dữ liệu hiện có lên màn hình để người dùng thấy lịch sử (không bôi vàng)
-                    handleServerData(data);
+                    handleServerData(all);
 
                     // Kích hoạt vòng lặp chạy ngầm đồng bộ sau 3 giây
                     pollingTimer = setTimeout(syncLogs, 4000);
@@ -415,7 +430,9 @@
 
             // 2. Dọn dẹp dữ liệu local
             const dbKey = `db_known_ids_${inputPhone}`;
+            const dbInitializedKey = `db_initialized_${inputPhone}`;
             localStorage.removeItem(dbKey);
+            localStorage.removeItem(dbInitializedKey);
             localStorage.removeItem("saved_user_phone");
             localStorage.removeItem("saved_user_token");
             
