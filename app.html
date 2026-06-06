@@ -163,6 +163,8 @@
 
         // Mảng chứa danh sách ID tin nhắn mới kích hoạt bôi vàng trên UI chu kỳ hiện tại
         let sessionNewIds = new Set();
+        let notificationQueue = [];
+        let notificationQueueTimer = null;
 
         // Khởi tạo quyền Notification hệ thống ngay khi load trang
         if ("Notification" in window && Notification.permission !== "granted") {
@@ -270,7 +272,7 @@
                         // KIỂM TRA DATABASE LOCAL: Nếu ID chưa từng xuất hiện trong máy Client!
                         if (!knownIds.has(item.id)) {
                             // 1. Kích hoạt thông báo đẩy của trình duyệt Chrome lập tức
-                            sendBrowserNotification(item);
+                            queueBrowserNotification(item);
 
                             // 2. Điền tên vào danh sách bôi vàng trên UI và danh sách lưu Database
                             sessionNewIds.add(item.id);
@@ -323,14 +325,31 @@
         /**
          * KHỞI TẠO BẮN POPUP THÔNG BÁO CHROME
          */
+        function queueBrowserNotification(item) {
+            notificationQueue.push(item);
+            if (!notificationQueueTimer) {
+                processNotificationQueue();
+            }
+        }
+
+        function processNotificationQueue() {
+            const item = notificationQueue.shift();
+            if (!item) {
+                notificationQueueTimer = null;
+                return;
+            }
+
+            sendBrowserNotification(item);
+            notificationQueueTimer = setTimeout(processNotificationQueue, 650);
+        }
+
         function sendBrowserNotification(item) {
             if ("Notification" in window && Notification.permission === "granted") {
                 try {
                     const title = item.type === 'CALL' ? "📞 Cuộc gọi mới" : "💬 Tin nhắn mới";
-                    const notificationBody = `Số: ${item.incomingNumber}\nLúc: ${item.time}\nNội dung: ${item.content || '...'}`;
+                    const notificationBody = `Số: ${item.incomingNumber}\nLúc: ${item.time}\nID: ${item.id}\nNội dung: ${item.content || '...'}`;
 
-                    // Tạo tag duy nhất cho mỗi thông báo bằng cách thêm timestamp hiện tại
-                    const uniqueTag = `${item.id}-${Date.now()}`;
+                    const uniqueTag = `${item.id}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
                     new Notification(title, {
                         body: notificationBody,
@@ -372,7 +391,7 @@
                 clone.querySelector('.txt-number').innerText = item.incomingNumber;
                 clone.querySelector('.txt-content').innerText = item.content || '';
 
-                listDiv.appendChild(clone);
+                listDiv.appendChild(itemDiv); // Thay đổi: Thêm trực tiếp itemDiv vào listDiv
             });
         }
 
@@ -381,6 +400,9 @@
          */
         async function stopPolling() {
             if (pollingTimer) clearTimeout(pollingTimer);
+            if (notificationQueueTimer) clearTimeout(notificationQueueTimer);
+            notificationQueue = [];
+            notificationQueueTimer = null;
             
             // 1. Gửi yêu cầu xóa dữ liệu trên Server
             try {
