@@ -349,12 +349,14 @@
          * VẼ CÁC THẺ NHẬT KÝ ĐỒNG BỘ LÊN WEB
          */
         function renderLogs(logs) {
+            console.log("renderLogs: Nhận được mảng logs với số lượng:", logs.length, logs); // LOG 1: Kiểm tra mảng logs
             const listDiv = document.getElementById("log-list");
             const template = document.getElementById("log-template");
 
             listDiv.innerHTML = "";
 
             logs.forEach(item => {
+                console.log("renderLogs: Đang xử lý item ID:", item.id); // LOG 2: Kiểm tra từng item
                 const clone = template.content.cloneNode(true);
                 const itemDiv = clone.querySelector('.log-item');
 
