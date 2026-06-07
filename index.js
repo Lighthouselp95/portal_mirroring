@@ -20,7 +20,6 @@ app.use((req, res, next) => {
             source: referer,
             ip: req.headers['x-forwarded-for'] || req.socket.remoteAddress,
             url: req.originalUrl,
-            host: req.headers.host,
             'sec-fetch-mode': req.headers['sec-fetch-mode'],
             'sec-fetch-site': req.headers['sec-fetch-site'],
             country: req.headers['cf-ipcountry'],
