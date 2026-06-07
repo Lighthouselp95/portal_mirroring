@@ -93,36 +93,22 @@
 
         .new-item-appearing {
             overflow: hidden;
-            height: 0;
             margin-top: 0;
             margin-bottom: 0;
-            padding-top: 0;
-            padding-bottom: 0;
             opacity: 0;
+            transform: translateY(-18px);
             transition:
-                height 1200ms ease-out,
                 margin-top 1200ms ease-out,
                 margin-bottom 1200ms ease-out,
-                padding-top 1200ms ease-out,
-                padding-bottom 1200ms ease-out,
-                opacity 1200ms ease-out;
-            will-change: height, margin, padding, opacity;
-        }
-
-        .new-item-appearing > * {
-            transform: translateY(-18px);
-            transition: transform 1200ms ease-out;
+                opacity 1200ms ease-out,
+                transform 1200ms ease-out;
+            will-change: margin, opacity, transform;
         }
 
         .new-item-appearing.is-expanding {
             margin-top: 8px;
             margin-bottom: 8px;
-            padding-top: 8px;
-            padding-bottom: 8px;
             opacity: 1;
-        }
-
-        .new-item-appearing.is-expanding > * {
             transform: translateY(0);
         }
 
@@ -484,19 +470,21 @@
         }
 
         function expandNewItem(itemDiv) {
-            const targetHeight = itemDiv.scrollHeight;
+            const targetHeight = itemDiv.offsetHeight;
 
             requestAnimationFrame(() => {
-                itemDiv.style.height = `${targetHeight}px`;
+                itemDiv.style.marginTop = `-${targetHeight}px`;
+                itemDiv.offsetHeight;
+                itemDiv.style.marginTop = '';
                 itemDiv.classList.add('is-expanding');
             });
 
             const finishExpand = (event) => {
-                if (event.propertyName !== 'height') return;
+                if (event.propertyName !== 'margin-top') return;
 
                 itemDiv.removeEventListener('transitionend', finishExpand);
                 itemDiv.classList.remove('new-item-appearing', 'is-expanding');
-                itemDiv.style.height = '';
+                itemDiv.style.marginTop = '';
             };
 
             itemDiv.addEventListener('transitionend', finishExpand);
