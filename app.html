@@ -89,6 +89,20 @@
         .new-item {
             background-color: #fff6e5;
             border: 1px solid #f90;
+            animation: newItemAppear 280ms ease-out;
+            transform-origin: top center;
+        }
+
+        @keyframes newItemAppear {
+            from {
+                opacity: 0;
+                transform: translateY(-10px) scale(0.98);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
         }
 
         .CALL {
@@ -414,7 +428,7 @@
         }
 
         /**
-         * BÔI VÀNG LOG MỚI TRONG 10 GIÂY RỒI TỰ TẮT
+         * BÔI VÀNG LOG MỚI TRONG 7 GIÂY RỒI TỰ TẮT
          */
         function markItemAsNew(id) {
             sessionNewIds.add(id);
@@ -427,7 +441,7 @@
                 sessionNewIds.delete(id);
                 highlightTimers.delete(id);
                 renderLogs(latestRenderedLogs);
-            }, 10000);
+            }, 7000);
 
             highlightTimers.set(id, timer);
         }
