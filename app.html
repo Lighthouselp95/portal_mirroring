@@ -496,7 +496,6 @@
 
                 wrapper.removeEventListener('transitionend', finishReveal);
                 wrapper.style.height = `${targetHeight}px`;
-                wrapper.classList.remove('is-expanding');
             };
 
             wrapper.addEventListener('transitionend', finishReveal);
