@@ -517,7 +517,8 @@
                 if (event.propertyName !== 'height') return;
 
                 wrapper.removeEventListener('transitionend', finishReveal);
-                wrapper.style.height = `${targetHeight}px`;
+                wrapper.style.minHeight = `${targetHeight}px`;
+                wrapper.style.height = '';
             };
 
             wrapper.addEventListener('transitionend', finishReveal);
