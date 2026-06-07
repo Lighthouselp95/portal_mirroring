@@ -495,7 +495,8 @@
                 if (event.propertyName !== 'height') return;
 
                 wrapper.removeEventListener('transitionend', finishReveal);
-                wrapper.style.height = 'auto';
+                wrapper.style.height = `${targetHeight}px`;
+                wrapper.classList.remove('is-expanding');
             };
 
             wrapper.addEventListener('transitionend', finishReveal);
