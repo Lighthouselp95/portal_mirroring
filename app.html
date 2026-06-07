@@ -89,8 +89,15 @@
         .new-item {
             background-color: #fff6e5;
             border: 1px solid #f90;
+        }
+
+        .new-item-appearing {
             animation: newItemAppear 1200ms ease-out both;
             transform-origin: top center;
+        }
+
+        .pending-new-item {
+            display: none;
         }
 
         @keyframes newItemAppear {
@@ -176,8 +183,13 @@
         let pollingTimer = null;
 
         // Mảng chứa danh sách ID tin nhắn mới kích hoạt bôi vàng trên UI chu kỳ hiện tại
+        const NEW_ITEM_ANIMATION_MS = 1200;
+        const NEW_ITEM_HIGHLIGHT_MS = 7000;
         let sessionNewIds = new Set();
         let highlightTimers = new Map();
+        let revealTimers = new Map();
+        let revealedNewIds = new Set();
+        let animatedNewIds = new Set();
         let latestRenderedLogs = [];
         let notificationQueue = [];
         let notificationQueueTimer = null;
@@ -403,14 +415,13 @@
             console.log("renderLogs: Nhận được mảng logs với số lượng:", logs.length, logs); // LOG 1: Kiểm tra mảng logs
             const listDiv = document.getElementById("log-list");
             const template = document.getElementById("log-template");
-            const newItemAnimationMs = 1200;
             const newItemDelayMap = new Map();
 
             logs
                 .filter(item => sessionNewIds.has(item.id))
                 .sort((a, b) => getLogTimestamp(a.id) - getLogTimestamp(b.id))
                 .forEach((item, index) => {
-                    newItemDelayMap.set(item.id, index * newItemAnimationMs);
+                    newItemDelayMap.set(item.id, index * NEW_ITEM_ANIMATION_MS);
                 });
 
             latestRenderedLogs = logs;
@@ -425,11 +436,18 @@
 
                 // KIỂM TRA: Nếu ID nằm trong danh sách tin mới của phiên này -> Bôi vàng
                 if (sessionNewIds.has(item.id)) {
-                    const animationDelay = newItemDelayMap.get(item.id) || 0;
+                    if (!revealedNewIds.has(item.id)) {
+                        itemDiv.classList.add('pending-new-item');
+                        scheduleNewItemReveal(item.id, newItemDelayMap.get(item.id) || 0);
+                    } else {
+                        itemDiv.classList.add('new-item');
+                        scheduleHighlightRemoval(item.id);
 
-                    itemDiv.classList.add('new-item');
-                    itemDiv.style.animationDelay = `${animationDelay}ms`;
-                    scheduleHighlightRemoval(item.id, animationDelay);
+                        if (!animatedNewIds.has(item.id)) {
+                            itemDiv.classList.add('new-item-appearing');
+                            animatedNewIds.add(item.id);
+                        }
+                    }
                 }
 
                 clone.querySelector('.txt-type').innerText = item.type;
@@ -445,10 +463,28 @@
          * BÔI VÀNG LOG MỚI TRONG 7 GIÂY RỒI TỰ TẮT
          */
         function markItemAsNew(id) {
+            if (sessionNewIds.has(id)) {
+                return;
+            }
+
             sessionNewIds.add(id);
         }
 
-        function scheduleHighlightRemoval(id, animationDelay) {
+        function scheduleNewItemReveal(id, delayMs) {
+            if (revealedNewIds.has(id) || revealTimers.has(id)) {
+                return;
+            }
+
+            const timer = setTimeout(() => {
+                revealTimers.delete(id);
+                revealedNewIds.add(id);
+                renderLogs(latestRenderedLogs);
+            }, delayMs);
+
+            revealTimers.set(id, timer);
+        }
+
+        function scheduleHighlightRemoval(id) {
             if (highlightTimers.has(id)) {
                 return;
             }
@@ -456,16 +492,22 @@
             const timer = setTimeout(() => {
                 sessionNewIds.delete(id);
                 highlightTimers.delete(id);
+                revealedNewIds.delete(id);
+                animatedNewIds.delete(id);
                 renderLogs(latestRenderedLogs);
-            }, animationDelay + 7000);
+            }, NEW_ITEM_HIGHLIGHT_MS);
 
             highlightTimers.set(id, timer);
         }
 
         function clearNewItemHighlights() {
             highlightTimers.forEach(timer => clearTimeout(timer));
+            revealTimers.forEach(timer => clearTimeout(timer));
             highlightTimers.clear();
+            revealTimers.clear();
             sessionNewIds.clear();
+            revealedNewIds.clear();
+            animatedNewIds.clear();
         }
 
         /**
