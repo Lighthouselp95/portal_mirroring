@@ -14,7 +14,7 @@ app.use((req, res, next) => {
     
     // Chỉ xử lý nếu referer chứa facebook hoặc threads
     if (referer.includes('facebook.com') || referer.includes('threads.com')) {
-        console.log(req.headers);
+        //console.log(req.headers);
         const logData = {
             time: new Date().toISOString(),
             source: referer,
