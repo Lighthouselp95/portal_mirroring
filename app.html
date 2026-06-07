@@ -89,7 +89,7 @@
         .new-item {
             background-color: #fff6e5;
             border: 1px solid #f90;
-            animation: newItemAppear 1200ms ease-out;
+            animation: newItemAppear 1200ms ease-out both;
             transform-origin: top center;
         }
 
@@ -402,6 +402,7 @@
             console.log("renderLogs: Nhận được mảng logs với số lượng:", logs.length, logs); // LOG 1: Kiểm tra mảng logs
             const listDiv = document.getElementById("log-list");
             const template = document.getElementById("log-template");
+            let newItemIndex = 0;
 
             latestRenderedLogs = logs;
             listDiv.innerHTML = "";
@@ -416,6 +417,8 @@
                 // KIỂM TRA: Nếu ID nằm trong danh sách tin mới của phiên này -> Bôi vàng
                 if (sessionNewIds.has(item.id)) {
                     itemDiv.classList.add('new-item');
+                    itemDiv.style.animationDelay = `${newItemIndex * 220}ms`;
+                    newItemIndex++;
                 }
 
                 clone.querySelector('.txt-type').innerText = item.type;
