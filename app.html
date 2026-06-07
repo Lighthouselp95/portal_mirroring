@@ -95,7 +95,11 @@
             overflow: hidden;
             animation: newItemAppear 1200ms ease-out both;
             transform-origin: top center;
-            will-change: max-height, margin, padding, opacity, transform;
+            will-change: max-height, margin, padding, opacity;
+        }
+
+        .new-item-appearing > * {
+            animation: newItemContentAppear 1200ms ease-out both;
         }
 
         .pending-new-item {
@@ -110,7 +114,6 @@
                 padding-top: 0;
                 padding-bottom: 0;
                 opacity: 0;
-                transform: translateY(-24px);
             }
 
             to {
@@ -120,6 +123,15 @@
                 padding-top: 8px;
                 padding-bottom: 8px;
                 opacity: 1;
+            }
+        }
+
+        @keyframes newItemContentAppear {
+            from {
+                transform: translateY(-18px);
+            }
+
+            to {
                 transform: translateY(0);
             }
         }
