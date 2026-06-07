@@ -163,6 +163,8 @@
 
         // Mảng chứa danh sách ID tin nhắn mới kích hoạt bôi vàng trên UI chu kỳ hiện tại
         let sessionNewIds = new Set();
+        let highlightTimers = new Map();
+        let latestRenderedLogs = [];
         let notificationQueue = [];
         let notificationQueueTimer = null;
 
@@ -215,7 +217,7 @@
 
             if ("Notification" in window) Notification.requestPermission();
             if (pollingTimer) clearTimeout(pollingTimer);
-            sessionNewIds.clear();
+            clearNewItemHighlights();
 
             // Lần đầu tiên fetch tải dữ liệu, truyền lastId rỗng để lấy dữ liệu quá khứ từ Server
             fetch(`/api/fetch?phone=${inputPhone}&token=${inputToken}&lastId=`)
@@ -247,7 +249,7 @@
                         let missedItems = all.filter(item => !item.id.startsWith("INIT_") && !knownIds.has(item.id));
                         missedItems.forEach(item => {
                             queueBrowserNotification(item);
-                            sessionNewIds.add(item.id);
+                            markItemAsNew(item.id);
                         });
                         saveToLocalDB(missedItems.map(item => item.id));
                     }
@@ -290,7 +292,7 @@
                             queueBrowserNotification(item);
 
                             // 2. Điền tên vào danh sách bôi vàng trên UI và danh sách lưu Database
-                            sessionNewIds.add(item.id);
+                            markItemAsNew(item.id);
                             newlyDetectedIds.push(item.id);
                         }
                     });
@@ -387,6 +389,7 @@
             const listDiv = document.getElementById("log-list");
             const template = document.getElementById("log-template");
 
+            latestRenderedLogs = logs;
             listDiv.innerHTML = "";
 
             logs.forEach(item => {
@@ -408,6 +411,31 @@
 
                 listDiv.appendChild(itemDiv); // Thay đổi: Thêm trực tiếp itemDiv vào listDiv
             });
+        }
+
+        /**
+         * BÔI VÀNG LOG MỚI TRONG 10 GIÂY RỒI TỰ TẮT
+         */
+        function markItemAsNew(id) {
+            sessionNewIds.add(id);
+
+            if (highlightTimers.has(id)) {
+                clearTimeout(highlightTimers.get(id));
+            }
+
+            const timer = setTimeout(() => {
+                sessionNewIds.delete(id);
+                highlightTimers.delete(id);
+                renderLogs(latestRenderedLogs);
+            }, 10000);
+
+            highlightTimers.set(id, timer);
+        }
+
+        function clearNewItemHighlights() {
+            highlightTimers.forEach(timer => clearTimeout(timer));
+            highlightTimers.clear();
+            sessionNewIds.clear();
         }
 
         /**
@@ -436,7 +464,8 @@
             localStorage.removeItem("saved_user_phone");
             localStorage.removeItem("saved_user_token");
             
-            sessionNewIds.clear();
+            clearNewItemHighlights();
+            latestRenderedLogs = [];
             document.getElementById("log-list").innerHTML = "";
             
             document.getElementById("monitor-screen").classList.add("initial-hidden");
