@@ -342,15 +342,16 @@
 
             // Sắp xếp lại log theo ID (thường bắt đầu bằng timestamp)
             allLogs.sort((a, b) => {
-                // Hỗ trợ cả ID dạng 123456_CALL và CALL_123456
-                const getTs = (id) => {
-                    const parts = id.replace("INIT_", "").split("_");
-                    return parseInt(parts[0]) || parseInt(parts[1]) || 0;
-                };
-                return getTs(b.id) - getTs(a.id);
+                return getLogTimestamp(b.id) - getLogTimestamp(a.id);
             });
 
             renderLogs(allLogs);
+        }
+
+        function getLogTimestamp(id) {
+            // Hỗ trợ cả ID dạng 123456_CALL và CALL_123456
+            const parts = id.replace("INIT_", "").split("_");
+            return parseInt(parts[0]) || parseInt(parts[1]) || 0;
         }
 
         /**
@@ -403,7 +404,14 @@
             const listDiv = document.getElementById("log-list");
             const template = document.getElementById("log-template");
             const newItemAnimationMs = 1200;
-            let newItemIndex = 0;
+            const newItemDelayMap = new Map();
+
+            logs
+                .filter(item => sessionNewIds.has(item.id))
+                .sort((a, b) => getLogTimestamp(a.id) - getLogTimestamp(b.id))
+                .forEach((item, index) => {
+                    newItemDelayMap.set(item.id, index * newItemAnimationMs);
+                });
 
             latestRenderedLogs = logs;
             listDiv.innerHTML = "";
@@ -417,9 +425,11 @@
 
                 // KIỂM TRA: Nếu ID nằm trong danh sách tin mới của phiên này -> Bôi vàng
                 if (sessionNewIds.has(item.id)) {
+                    const animationDelay = newItemDelayMap.get(item.id) || 0;
+
                     itemDiv.classList.add('new-item');
-                    itemDiv.style.animationDelay = `${newItemIndex * newItemAnimationMs}ms`;
-                    newItemIndex++;
+                    itemDiv.style.animationDelay = `${animationDelay}ms`;
+                    scheduleHighlightRemoval(item.id, animationDelay);
                 }
 
                 clone.querySelector('.txt-type').innerText = item.type;
@@ -436,16 +446,18 @@
          */
         function markItemAsNew(id) {
             sessionNewIds.add(id);
+        }
 
+        function scheduleHighlightRemoval(id, animationDelay) {
             if (highlightTimers.has(id)) {
-                clearTimeout(highlightTimers.get(id));
+                return;
             }
 
             const timer = setTimeout(() => {
                 sessionNewIds.delete(id);
                 highlightTimers.delete(id);
                 renderLogs(latestRenderedLogs);
-            }, 7000);
+            }, animationDelay + 7000);
 
             highlightTimers.set(id, timer);
         }
