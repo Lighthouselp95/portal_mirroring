@@ -100,43 +100,30 @@
         .log-reveal {
             overflow: hidden;
             height: 0;
-            margin-top: 0;
+            opacity: 0;
             transition:
-                height 1300ms cubic-bezier(0.25, 0.1, 0.25, 1),
-                margin-top 1300ms cubic-bezier(0.25, 0.1, 0.25, 1);
-            will-change: height, margin-top;
+                height 800ms cubic-bezier(0.25, 0.1, 0.25, 1),
+                opacity 400ms ease-out,
+                margin-top 800ms cubic-bezier(0.25, 0.1, 0.25, 1);
+            will-change: height, opacity, margin-top;
+        }
+
+        .log-reveal.is-expanding {
+            opacity: 1;
         }
 
         .log-reveal .log-item {
-            transform: translateY(-100%);
-            opacity: 1;
-            transition: transform 1300ms cubic-bezier(0.25, 0.1, 0.25, 1);
-            will-change: transform;
+            transform: translateY(-20px);
+            transition: transform 800ms cubic-bezier(0.25, 0.1, 0.25, 1);
         }
 
         .log-reveal.is-expanding .log-item {
             transform: translateY(0);
         }
 
-        #log-list > .log-reveal.is-expanding {
-            margin-top: 8px;
-        }
-
-        #log-list > .log-reveal:first-child {
-            margin-top: 0;
-        }
-
-        #log-list > .log-item + .log-item,
-        #log-list > .log-reveal + .log-item {
-            margin-top: 8px;
-        }
-
+        /* Xóa bỏ pending-new-item vì không còn dùng tới */
         .pending-new-item {
-            opacity: 0;
-            pointer-events: none;
-            position: absolute;
-            z-index: -1;
-            visibility: hidden;
+            display: none;
         }
 
         .CALL {
@@ -209,9 +196,9 @@
         let inputPhone = "", inputToken = "";
         let pollingTimer = null;
 
-        // Mảng chứa danh sách ID tin nhắn mới kích hoạt bôi vàng trên UI chu kỳ hiện tại
-        const NEW_ITEM_ANIMATION_MS = 1300;
-        const NEW_ITEM_STAGGER_MS = NEW_ITEM_ANIMATION_MS;
+        // Giảm thời gian chờ để tin hiện lên nhanh hơn ngay sau thông báo
+        const NEW_ITEM_ANIMATION_MS = 800;
+        const NEW_ITEM_STAGGER_MS = 400; // Tin sau hiện cách tin trước 400ms
         const NEW_ITEM_HIGHLIGHT_MS = 7000;
         let sessionNewIds = new Set();
         let highlightTimers = new Map();
@@ -501,33 +488,27 @@
             const wrapper = document.createElement('div');
             wrapper.className = 'log-reveal';
 
-            // Tạm thời bỏ các class ẩn để đo kích thước thật
-            itemDiv.classList.remove('pending-new-item');
-            itemDiv.style.visibility = 'hidden';
-            itemDiv.style.position = 'absolute';
-            document.body.appendChild(itemDiv);
-            const targetHeight = itemDiv.offsetHeight;
-            document.body.removeChild(itemDiv);
-            
-            // Trả lại trạng thái để chuẩn bị animation
-            itemDiv.style.visibility = '';
-            itemDiv.style.position = '';
+            // Tạo bản sao tạm để đo chiều cao chính xác mà không làm gián đoạn DOM chính
+            const clone = itemDiv.cloneNode(true);
+            clone.style.visibility = 'hidden';
+            clone.style.position = 'absolute';
+            clone.style.width = getComputedStyle(document.getElementById('log-list')).width;
+            document.body.appendChild(clone);
+            const targetHeight = clone.offsetHeight + 8; // +8 cho margin/gap
+            document.body.removeChild(clone);
 
             if (listDiv) {
                 wrapper.appendChild(itemDiv);
-                // Luôn chèn vào đầu danh sách để đẩy các tin khác xuống
                 listDiv.insertBefore(wrapper, listDiv.firstChild);
             } else {
                 itemDiv.replaceWith(wrapper);
                 wrapper.appendChild(itemDiv);
             }
 
-            wrapper.style.height = '0px';
-            wrapper.classList.remove('is-expanding');
-            wrapper.offsetHeight; // Force reflow
-
+            // Thực hiện animation
             requestAnimationFrame(() => {
                 wrapper.style.height = `${targetHeight}px`;
+                wrapper.style.marginTop = '8px';
                 wrapper.classList.add('is-expanding');
             });
 
