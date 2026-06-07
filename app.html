@@ -84,7 +84,7 @@
 
         .log-item {
             padding: 8px 12px;
-            margin: 0 0 8px 0;
+            margin: 0;
             border: 1px solid #e0e0e0;
             border-radius: 4px;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
@@ -115,9 +115,11 @@
             transform: translateY(0);
         }
 
-        #log-list > .log-item:last-child,
-        #log-list > .log-reveal:last-child .log-item {
-            margin-bottom: 0;
+        #log-list > .log-item + .log-item,
+        #log-list > .log-item + .log-reveal,
+        #log-list > .log-reveal + .log-item,
+        #log-list > .log-reveal + .log-reveal {
+            margin-top: 8px;
         }
 
         .pending-new-item {
@@ -490,8 +492,7 @@
                 wrapper.appendChild(itemDiv);
             }
 
-            const itemStyles = getComputedStyle(itemDiv);
-            const targetHeight = itemDiv.offsetHeight + parseFloat(itemStyles.marginBottom);
+            const targetHeight = itemDiv.offsetHeight;
 
             requestAnimationFrame(() => {
                 wrapper.style.height = `${targetHeight}px`;
