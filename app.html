@@ -102,15 +102,15 @@
             height: 0;
             margin-top: 0;
             transition:
-                height 1200ms cubic-bezier(0.45, 0, 0.25, 1),
-                margin-top 1200ms cubic-bezier(0.45, 0, 0.25, 1);
+                height 1500ms cubic-bezier(0.45, 0, 0.25, 1),
+                margin-top 1500ms cubic-bezier(0.45, 0, 0.25, 1);
             will-change: height, margin-top;
         }
 
         .log-reveal .log-item {
             transform: translateY(-100%);
             opacity: 1;
-            transition: transform 1200ms cubic-bezier(0.45, 0, 0.25, 1);
+            transition: transform 1500ms cubic-bezier(0.45, 0, 0.25, 1);
             will-change: transform;
         }
 
@@ -206,7 +206,7 @@
         let pollingTimer = null;
 
         // Mảng chứa danh sách ID tin nhắn mới kích hoạt bôi vàng trên UI chu kỳ hiện tại
-        const NEW_ITEM_ANIMATION_MS = 1200;
+        const NEW_ITEM_ANIMATION_MS = 1500;
         const NEW_ITEM_STAGGER_MS = NEW_ITEM_ANIMATION_MS;
         const NEW_ITEM_HIGHLIGHT_MS = 7000;
         let sessionNewIds = new Set();
