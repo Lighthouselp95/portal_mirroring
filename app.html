@@ -502,10 +502,15 @@
             }
 
             const targetHeight = itemDiv.offsetHeight;
+            wrapper.style.height = '0px';
+            wrapper.classList.remove('is-expanding');
+            wrapper.offsetHeight;
 
             requestAnimationFrame(() => {
-                wrapper.style.height = `${targetHeight}px`;
-                wrapper.classList.add('is-expanding');
+                requestAnimationFrame(() => {
+                    wrapper.style.height = `${targetHeight}px`;
+                    wrapper.classList.add('is-expanding');
+                });
             });
 
             const finishReveal = (event) => {
