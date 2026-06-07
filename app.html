@@ -91,24 +91,21 @@
             border: 1px solid #f90;
         }
 
-        .new-item-appearing {
+        .log-reveal {
             overflow: hidden;
-            margin-top: 0;
-            margin-bottom: 0;
-            opacity: 0;
-            transform: translateY(-18px);
-            transition:
-                margin-top 1200ms ease-out,
-                margin-bottom 1200ms ease-out,
-                opacity 1200ms ease-out,
-                transform 1200ms ease-out;
-            will-change: margin, opacity, transform;
+            height: 0;
+            transition: height 1200ms ease-out;
+            will-change: height;
         }
 
-        .new-item-appearing.is-expanding {
-            margin-top: 8px;
-            margin-bottom: 8px;
+        .log-reveal .log-item {
+            transform: translateY(-100%);
             opacity: 1;
+            transition: transform 1200ms ease-out;
+            will-change: transform;
+        }
+
+        .log-reveal.is-expanding .log-item {
             transform: translateY(0);
         }
 
@@ -435,7 +432,7 @@
                 console.log("renderLogs: Đang xử lý item ID:", item.id); // LOG 2: Kiểm tra từng item
                 const clone = template.content.cloneNode(true);
                 const itemDiv = clone.querySelector('.log-item');
-                let shouldExpandNewItem = false;
+                let shouldRevealNewItem = false;
 
                 itemDiv.classList.add(item.type);
 
@@ -449,9 +446,8 @@
                         scheduleHighlightRemoval(item.id);
 
                         if (!animatedNewIds.has(item.id)) {
-                            itemDiv.classList.add('new-item-appearing');
                             animatedNewIds.add(item.id);
-                            shouldExpandNewItem = true;
+                            shouldRevealNewItem = true;
                         }
                     }
                 }
@@ -461,33 +457,39 @@
                 clone.querySelector('.txt-number').innerText = item.incomingNumber;
                 clone.querySelector('.txt-content').innerText = item.content || '';
 
-                listDiv.appendChild(itemDiv); // Thay đổi: Thêm trực tiếp itemDiv vào listDiv
-
-                if (shouldExpandNewItem) {
-                    expandNewItem(itemDiv);
+                if (shouldRevealNewItem) {
+                    revealNewItem(listDiv, itemDiv);
+                } else {
+                    listDiv.appendChild(itemDiv);
                 }
             });
         }
 
-        function expandNewItem(itemDiv) {
-            const targetHeight = itemDiv.offsetHeight;
+        function revealNewItem(listDiv, itemDiv) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'log-reveal';
+
+            wrapper.appendChild(itemDiv);
+            listDiv.appendChild(wrapper);
+
+            const itemStyles = getComputedStyle(itemDiv);
+            const targetHeight = itemDiv.offsetHeight
+                + parseFloat(itemStyles.marginTop)
+                + parseFloat(itemStyles.marginBottom);
 
             requestAnimationFrame(() => {
-                itemDiv.style.marginTop = `-${targetHeight}px`;
-                itemDiv.offsetHeight;
-                itemDiv.style.marginTop = '';
-                itemDiv.classList.add('is-expanding');
+                wrapper.style.height = `${targetHeight}px`;
+                wrapper.classList.add('is-expanding');
             });
 
-            const finishExpand = (event) => {
-                if (event.propertyName !== 'margin-top') return;
+            const finishReveal = (event) => {
+                if (event.propertyName !== 'height') return;
 
-                itemDiv.removeEventListener('transitionend', finishExpand);
-                itemDiv.classList.remove('new-item-appearing', 'is-expanding');
-                itemDiv.style.marginTop = '';
+                wrapper.removeEventListener('transitionend', finishReveal);
+                wrapper.replaceWith(itemDiv);
             };
 
-            itemDiv.addEventListener('transitionend', finishExpand);
+            wrapper.addEventListener('transitionend', finishReveal);
         }
 
         /**
