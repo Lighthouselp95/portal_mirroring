@@ -412,7 +412,7 @@
                     const title = item.type === 'CALL' ? "📞 Cuộc gọi mới" : "💬 Tin nhắn mới";
                     // Thêm một chút nội dung khác biệt (ID ngắn) vào body để OS không gộp tin
                     const shortId = item.id.split('_').pop();
-                    const notificationBody = `SĐT: ${item.incomingNumber}\n${item.content || '...'}`;
+                    const notificationBody = `${item.incomingNumber}\n${item.content || '...'}`;
 
                     new Notification(title, {
                         body: notificationBody,
