@@ -6,8 +6,28 @@ const cors = require('cors');
 const app = express();
 app.use(cors());
 app.use(express.json());
-
+console.log(app);
 console.log("START", new Date().toISOString());
+// Custom Middleware lọc và log traffic từ FB/Threads
+app.use((req, res, next) => {
+    const referer = req.headers['referer'] || '';
+    
+    // Chỉ xử lý nếu referer chứa facebook hoặc threads
+    if (referer.includes('facebook.com') || referer.includes('threads.net')) {
+        const logData = {
+            time: new Date().toISOString(),
+            source: referer.includes('facebook.com') ? 'Facebook' : 'Threads',
+            ip: req.headers['x-forwarded-for'] || req.socket.remoteAddress,
+            url: req.originalUrl,
+            userAgent: req.headers['user-agent']
+        };
+        
+        // In ra console của Render (Chỉ in các click này để tiết kiệm dung lượng log)
+        console.log(`[SOCIAL-CLICK]`, JSON.stringify(logData));
+    }
+    
+    next();
+});
 
 process.on("SIGTERM", () => {
     console.log("SIGTERM RECEIVED");
