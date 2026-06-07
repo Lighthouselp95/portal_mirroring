@@ -93,47 +93,41 @@
 
         .new-item-appearing {
             overflow: hidden;
-            animation: newItemAppear 1200ms ease-out both;
-            transform-origin: top center;
-            will-change: max-height, margin, padding, opacity;
+            height: 0;
+            margin-top: 0;
+            margin-bottom: 0;
+            padding-top: 0;
+            padding-bottom: 0;
+            opacity: 0;
+            transition:
+                height 1200ms ease-out,
+                margin-top 1200ms ease-out,
+                margin-bottom 1200ms ease-out,
+                padding-top 1200ms ease-out,
+                padding-bottom 1200ms ease-out,
+                opacity 1200ms ease-out;
+            will-change: height, margin, padding, opacity;
         }
 
         .new-item-appearing > * {
-            animation: newItemContentAppear 1200ms ease-out both;
+            transform: translateY(-18px);
+            transition: transform 1200ms ease-out;
+        }
+
+        .new-item-appearing.is-expanding {
+            margin-top: 8px;
+            margin-bottom: 8px;
+            padding-top: 8px;
+            padding-bottom: 8px;
+            opacity: 1;
+        }
+
+        .new-item-appearing.is-expanding > * {
+            transform: translateY(0);
         }
 
         .pending-new-item {
             display: none;
-        }
-
-        @keyframes newItemAppear {
-            from {
-                max-height: 0;
-                margin-top: 0;
-                margin-bottom: 0;
-                padding-top: 0;
-                padding-bottom: 0;
-                opacity: 0;
-            }
-
-            to {
-                max-height: 260px;
-                margin-top: 8px;
-                margin-bottom: 8px;
-                padding-top: 8px;
-                padding-bottom: 8px;
-                opacity: 1;
-            }
-        }
-
-        @keyframes newItemContentAppear {
-            from {
-                transform: translateY(-18px);
-            }
-
-            to {
-                transform: translateY(0);
-            }
         }
 
         .CALL {
@@ -455,6 +449,7 @@
                 console.log("renderLogs: Đang xử lý item ID:", item.id); // LOG 2: Kiểm tra từng item
                 const clone = template.content.cloneNode(true);
                 const itemDiv = clone.querySelector('.log-item');
+                let shouldExpandNewItem = false;
 
                 itemDiv.classList.add(item.type);
 
@@ -470,9 +465,7 @@
                         if (!animatedNewIds.has(item.id)) {
                             itemDiv.classList.add('new-item-appearing');
                             animatedNewIds.add(item.id);
-                            itemDiv.addEventListener('animationend', () => {
-                                itemDiv.classList.remove('new-item-appearing');
-                            }, { once: true });
+                            shouldExpandNewItem = true;
                         }
                     }
                 }
@@ -483,7 +476,30 @@
                 clone.querySelector('.txt-content').innerText = item.content || '';
 
                 listDiv.appendChild(itemDiv); // Thay đổi: Thêm trực tiếp itemDiv vào listDiv
+
+                if (shouldExpandNewItem) {
+                    expandNewItem(itemDiv);
+                }
             });
+        }
+
+        function expandNewItem(itemDiv) {
+            const targetHeight = itemDiv.scrollHeight;
+
+            requestAnimationFrame(() => {
+                itemDiv.style.height = `${targetHeight}px`;
+                itemDiv.classList.add('is-expanding');
+            });
+
+            const finishExpand = (event) => {
+                if (event.propertyName !== 'height') return;
+
+                itemDiv.removeEventListener('transitionend', finishExpand);
+                itemDiv.classList.remove('new-item-appearing', 'is-expanding');
+                itemDiv.style.height = '';
+            };
+
+            itemDiv.addEventListener('transitionend', finishExpand);
         }
 
         /**
