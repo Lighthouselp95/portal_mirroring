@@ -76,9 +76,15 @@
         }
 
         /* Thẻ thông báo nhỏ gọn tinh chỉnh CSS */
+        #log-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
         .log-item {
             padding: 8px 12px;
-            margin: 8px 0;
+            margin: 0;
             border: 1px solid #e0e0e0;
             border-radius: 4px;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
@@ -434,6 +440,7 @@
                 const itemDiv = clone.querySelector('.log-item');
                 let shouldRevealNewItem = false;
 
+                itemDiv.dataset.logId = item.id;
                 itemDiv.classList.add(item.type);
 
                 // KIỂM TRA: Nếu ID nằm trong danh sách tin mới của phiên này -> Bôi vàng
@@ -469,13 +476,15 @@
             const wrapper = document.createElement('div');
             wrapper.className = 'log-reveal';
 
-            wrapper.appendChild(itemDiv);
-            listDiv.appendChild(wrapper);
+            if (listDiv) {
+                wrapper.appendChild(itemDiv);
+                listDiv.appendChild(wrapper);
+            } else {
+                itemDiv.replaceWith(wrapper);
+                wrapper.appendChild(itemDiv);
+            }
 
-            const itemStyles = getComputedStyle(itemDiv);
-            const targetHeight = itemDiv.offsetHeight
-                + parseFloat(itemStyles.marginTop)
-                + parseFloat(itemStyles.marginBottom);
+            const targetHeight = itemDiv.offsetHeight;
 
             requestAnimationFrame(() => {
                 wrapper.style.height = `${targetHeight}px`;
@@ -511,10 +520,32 @@
             const timer = setTimeout(() => {
                 revealTimers.delete(id);
                 revealedNewIds.add(id);
-                renderLogs(latestRenderedLogs);
+                revealScheduledNewItem(id);
             }, delayMs);
 
             revealTimers.set(id, timer);
+        }
+
+        function revealScheduledNewItem(id) {
+            if (!sessionNewIds.has(id)) {
+                return;
+            }
+
+            const itemDiv = Array.from(document.querySelectorAll('[data-log-id]'))
+                .find(element => element.dataset.logId === id);
+            if (!itemDiv) {
+                renderLogs(latestRenderedLogs);
+                return;
+            }
+
+            itemDiv.classList.remove('pending-new-item');
+            itemDiv.classList.add('new-item');
+            scheduleHighlightRemoval(id);
+
+            if (!animatedNewIds.has(id)) {
+                animatedNewIds.add(id);
+                revealNewItem(null, itemDiv);
+            }
         }
 
         function scheduleHighlightRemoval(id) {
