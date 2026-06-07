@@ -20,6 +20,8 @@ app.use((req, res, next) => {
             source: referer,
             ip: req.headers['x-forwarded-for'] || req.socket.remoteAddress,
             url: req.originalUrl,
+            host: req.headers.host,
+            country: req.headers['cf-ipcountry'],
             userAgent: req.headers['user-agent']
         };
         
