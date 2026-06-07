@@ -79,12 +79,12 @@
         #log-list {
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 0;
         }
 
         .log-item {
             padding: 8px 12px;
-            margin: 0;
+            margin: 0 0 8px 0;
             border: 1px solid #e0e0e0;
             border-radius: 4px;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
@@ -113,6 +113,11 @@
 
         .log-reveal.is-expanding .log-item {
             transform: translateY(0);
+        }
+
+        #log-list > .log-item:last-child,
+        #log-list > .log-reveal:last-child .log-item {
+            margin-bottom: 0;
         }
 
         .pending-new-item {
@@ -191,6 +196,7 @@
 
         // Mảng chứa danh sách ID tin nhắn mới kích hoạt bôi vàng trên UI chu kỳ hiện tại
         const NEW_ITEM_ANIMATION_MS = 1200;
+        const NEW_ITEM_STAGGER_MS = NEW_ITEM_ANIMATION_MS;
         const NEW_ITEM_HIGHLIGHT_MS = 7000;
         let sessionNewIds = new Set();
         let highlightTimers = new Map();
@@ -428,7 +434,7 @@
                 .filter(item => sessionNewIds.has(item.id))
                 .sort((a, b) => getLogTimestamp(a.id) - getLogTimestamp(b.id))
                 .forEach((item, index) => {
-                    newItemDelayMap.set(item.id, index * NEW_ITEM_ANIMATION_MS);
+                    newItemDelayMap.set(item.id, index * NEW_ITEM_STAGGER_MS);
                 });
 
             latestRenderedLogs = logs;
@@ -484,7 +490,8 @@
                 wrapper.appendChild(itemDiv);
             }
 
-            const targetHeight = itemDiv.offsetHeight;
+            const itemStyles = getComputedStyle(itemDiv);
+            const targetHeight = itemDiv.offsetHeight + parseFloat(itemStyles.marginBottom);
 
             requestAnimationFrame(() => {
                 wrapper.style.height = `${targetHeight}px`;
