@@ -581,10 +581,19 @@
                 highlightTimers.delete(id);
                 revealedNewIds.delete(id);
                 animatedNewIds.delete(id);
-                renderLogs(latestRenderedLogs);
+                removeNewItemHighlight(id);
             }, NEW_ITEM_HIGHLIGHT_MS);
 
             highlightTimers.set(id, timer);
+        }
+
+        function removeNewItemHighlight(id) {
+            const itemDiv = Array.from(document.querySelectorAll('[data-log-id]'))
+                .find(element => element.dataset.logId === id);
+
+            if (itemDiv) {
+                itemDiv.classList.remove('new-item');
+            }
         }
 
         function clearNewItemHighlights() {
