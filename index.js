@@ -6,14 +6,14 @@ const cors = require('cors');
 const app = express();
 app.use(cors());
 app.use(express.json());
-console.log(app);
+// console.log(app);
 console.log("START", new Date().toISOString());
 // Custom Middleware lọc và log traffic từ FB/Threads
 app.use((req, res, next) => {
     const referer = req.headers['referer'] || '';
     
     // Chỉ xử lý nếu referer chứa facebook hoặc threads
-    if (referer.includes('facebook.com') || referer.includes('threads.net')) {
+    if (referer.includes('facebook.com') || referer.includes('threads.com')) {
         const logData = {
             time: new Date().toISOString(),
             source: referer.includes('facebook.com') ? 'Facebook' : 'Threads',
