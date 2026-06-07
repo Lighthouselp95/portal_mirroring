@@ -486,7 +486,7 @@
                 if (event.propertyName !== 'height') return;
 
                 wrapper.removeEventListener('transitionend', finishReveal);
-                wrapper.replaceWith(itemDiv);
+                wrapper.style.height = 'auto';
             };
 
             wrapper.addEventListener('transitionend', finishReveal);
