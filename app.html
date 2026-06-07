@@ -402,6 +402,7 @@
             console.log("renderLogs: Nhận được mảng logs với số lượng:", logs.length, logs); // LOG 1: Kiểm tra mảng logs
             const listDiv = document.getElementById("log-list");
             const template = document.getElementById("log-template");
+            const newItemAnimationMs = 1200;
             let newItemIndex = 0;
 
             latestRenderedLogs = logs;
@@ -417,7 +418,7 @@
                 // KIỂM TRA: Nếu ID nằm trong danh sách tin mới của phiên này -> Bôi vàng
                 if (sessionNewIds.has(item.id)) {
                     itemDiv.classList.add('new-item');
-                    itemDiv.style.animationDelay = `${newItemIndex * 220}ms`;
+                    itemDiv.style.animationDelay = `${newItemIndex * newItemAnimationMs}ms`;
                     newItemIndex++;
                 }
 
