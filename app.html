@@ -132,7 +132,11 @@
         }
 
         .pending-new-item {
-            display: none;
+            opacity: 0;
+            pointer-events: none;
+            position: absolute;
+            z-index: -1;
+            visibility: hidden;
         }
 
         .CALL {
@@ -337,8 +341,8 @@
                         if (item.id.startsWith("INIT_")) return;
 
                         // KIỂM TRA DATABASE LOCAL: Nếu ID chưa từng xuất hiện trong máy Client!
-                        if (!knownIds.has(item.id)) {
-                            // 1. Kích hoạt thông báo đẩy của trình duyệt Chrome lập tức
+                        if (!knownIds.has(item.id)) {                            console.log(`[DEBUG] Phát hiện tin mới cần thông báo: ${item.id}`);
+                                                        // 1. Kích hoạt thông báo đẩy của trình duyệt Chrome lập tức
                             queueBrowserNotification(item);
 
                             // 2. Điền tên vào danh sách bôi vàng trên UI và danh sách lưu Database
@@ -407,27 +411,31 @@
                 return;
             }
 
-            sendBrowserNotification(item);
-            notificationQueueTimer = setTimeout(processNotificationQueue, 650);
+            try {
+                sendBrowserNotification(item);
+            } catch (e) {
+                console.error("Lỗi phát thông báo:", e);
+            }
+            notificationQueueTimer = setTimeout(processNotificationQueue, 800); // Tăng nhẹ lên 800ms để an toàn hơn
         }
 
         function sendBrowserNotification(item) {
             if ("Notification" in window && Notification.permission === "granted") {
                 try {
                     const title = item.type === 'CALL' ? "📞 Cuộc gọi mới" : "💬 Tin nhắn mới";
-                    const notificationBody = `${item.incomingNumber}\nThời gian: ${item.time}\nNội dung: ${item.content || '...'}`;
-
-                    const uniqueTag = `${item.id}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+                    // Thêm một chút nội dung khác biệt (ID ngắn) vào body để OS không gộp tin
+                    const shortId = item.id.split('_').pop();
+                    const notificationBody = `SĐT: ${item.incomingNumber}\n${item.content || '...'}\n[#${shortId}]`;
 
                     new Notification(title, {
                         body: notificationBody,
-                        tag: uniqueTag, 
+                        tag: item.id, // Dùng chính ID duy nhất của tin nhắn làm tag
                         renotify: true,
                         silent: false,
                         requireInteraction: true 
                     });
                 } catch (e) {
-                    console.error("Lỗi thông báo:", e);
+                    console.error("Lỗi khởi tạo Notification:", e);
                 }
             }
         }
@@ -493,32 +501,41 @@
             const wrapper = document.createElement('div');
             wrapper.className = 'log-reveal';
 
+            // Tạm thời bỏ các class ẩn để đo kích thước thật
+            itemDiv.classList.remove('pending-new-item');
+            itemDiv.style.visibility = 'hidden';
+            itemDiv.style.position = 'absolute';
+            document.body.appendChild(itemDiv);
+            const targetHeight = itemDiv.offsetHeight;
+            document.body.removeChild(itemDiv);
+            
+            // Trả lại trạng thái để chuẩn bị animation
+            itemDiv.style.visibility = '';
+            itemDiv.style.position = '';
+
             if (listDiv) {
                 wrapper.appendChild(itemDiv);
-                listDiv.appendChild(wrapper);
+                // Luôn chèn vào đầu danh sách để đẩy các tin khác xuống
+                listDiv.insertBefore(wrapper, listDiv.firstChild);
             } else {
                 itemDiv.replaceWith(wrapper);
                 wrapper.appendChild(itemDiv);
             }
 
-            const targetHeight = itemDiv.offsetHeight;
             wrapper.style.height = '0px';
             wrapper.classList.remove('is-expanding');
-            wrapper.offsetHeight;
+            wrapper.offsetHeight; // Force reflow
 
             requestAnimationFrame(() => {
-                requestAnimationFrame(() => {
-                    wrapper.style.height = `${targetHeight}px`;
-                    wrapper.classList.add('is-expanding');
-                });
+                wrapper.style.height = `${targetHeight}px`;
+                wrapper.classList.add('is-expanding');
             });
 
             const finishReveal = (event) => {
                 if (event.propertyName !== 'height') return;
-
                 wrapper.removeEventListener('transitionend', finishReveal);
-                wrapper.style.minHeight = `${targetHeight}px`;
-                wrapper.style.height = '';
+                wrapper.style.height = 'auto';
+                wrapper.style.overflow = 'visible';
             };
 
             wrapper.addEventListener('transitionend', finishReveal);
