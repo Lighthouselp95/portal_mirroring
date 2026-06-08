@@ -102,17 +102,17 @@
             overflow: hidden;
             height: 0;
             opacity: 0;
-            transition:
-                height 800ms cubic-bezier(0.25, 0.1, 0.25, 1),
-                opacity 400ms ease-out;
-                /* margin-top 800ms cubic-bezier(0.25, 0.1, 0.25, 1); */
-            will-change: height, opacity, margin-top;
+            margin-bottom: 0;
+            transition: 
+                height 600ms cubic-bezier(0.34, 1.56, 0.64, 1),
+                opacity 400ms ease,
+                margin-bottom 600ms cubic-bezier(0.34, 1.56, 0.64, 1);
+            will-change: height, opacity, margin-bottom;
         }
 
         .log-reveal.is-expanding {
             opacity: 1;
         }
-
         .log-reveal .log-item {
             transform: translateY(-20px);
             transition: transform 800ms cubic-bezier(0.25, 0.1, 0.25, 1);
@@ -493,10 +493,12 @@
             const clone = itemDiv.cloneNode(true);
             clone.style.visibility = 'hidden';
             clone.style.position = 'absolute';
-            clone.style.width = getComputedStyle(document.getElementById('log-list')).width;
+            clone.style.width = listDiv ? getComputedStyle(listDiv).width : '100%';
+            clone.style.height = 'auto';
             document.body.appendChild(clone);
-            const targetHeight = clone.offsetHeight + 8; // +8 cho margin/gap
+            const targetHeight = clone.offsetHeight;
             document.body.removeChild(clone);
+            const targetMargin = 4; // Khớp với gap của #log-list
 
             if (listDiv) {
                 wrapper.appendChild(itemDiv);
@@ -508,16 +510,17 @@
 
             // Thực hiện animation
             requestAnimationFrame(() => {
-                // wrapper.style.height = `${targetHeight}px`;
-                // wrapper.style.marginTop = '8px';
+                wrapper.style.height = `${targetHeight}px`;
+                wrapper.style.marginBottom = `${targetMargin}px`;
                 wrapper.classList.add('is-expanding');
             });
 
             const finishReveal = (event) => {
-                if (event.propertyName !== 'height') return;
+                if (event.propertyName !== 'height' && event.target !== wrapper) return;
                 wrapper.removeEventListener('transitionend', finishReveal);
                 wrapper.style.height = 'auto';
                 wrapper.style.overflow = 'visible';
+                wrapper.style.marginBottom = '0'; // Trả lại layout tự nhiên của container gap
             };
 
             wrapper.addEventListener('transitionend', finishReveal);
