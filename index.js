@@ -1,6 +1,5 @@
 const express = require('express');
 const fs = require('fs').promises;
-const { existsSync } = require('fs');
 const path = require('path');
 const cors = require('cors');
 
@@ -54,10 +53,14 @@ const DB_FILE = path.join(__dirname, 'all_logs.json');
 
 async function readDatabase() {
     try {
-        if (!existsSync(DB_FILE)) {
-            await fs.writeFile(DB_FILE, JSON.stringify({}));
+        // Check if file exists asynchronously using access
+        try {
+            await fs.access(DB_FILE);
+        } catch {
+            await fs.writeFile(DB_FILE, JSON.stringify({}), 'utf8');
             return {};
         }
+
         const data = await fs.readFile(DB_FILE, 'utf8');
         return data.trim() ? JSON.parse(data) : {};
     } catch (error) {
@@ -74,6 +77,9 @@ async function writeDatabase(data) {
     }
 }
 
+// Cơ chế hàng đợi (Lock) để tránh Race Condition khi ghi file
+let dbQueue = Promise.resolve();
+
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'app.html'));
 });
@@ -86,57 +92,58 @@ app.post('/api/push', async (req, res) => {
         return res.status(400).json({ error: "Thiếu thông tin Số điện thoại thiết bị!" });
     }
 
-    let db = await readDatabase(); // Đọc file all_logs.json
+    // Đưa toàn bộ logic vào hàng đợi để xử lý tuần tự
+    dbQueue = dbQueue.then(async () => {
+        let db = await readDatabase(); 
 
-    // 1. Nếu chưa có tài khoản trên Server -> Khởi tạo shell mới
-    if (!db[myPhoneNumber]) {
-        db[myPhoneNumber] = {
-            token: token || "", // Lấy theo Android, nếu Android trống thì Server trống
-            createdAt: new Date().toISOString(),
-            calls: [],
-            sms: []
+        // 1. Nếu chưa có tài khoản trên Server -> Khởi tạo shell mới
+        if (!db[myPhoneNumber]) {
+            db[myPhoneNumber] = {
+                token: token || "", 
+                createdAt: new Date().toISOString(),
+                calls: [],
+                sms: []
+            };
+            console.log(`[SYSTEM] Khởi tạo tài khoản mới cho: ${myPhoneNumber}`);
+        } 
+        
+        // 2. Đồng bộ Token
+        else if (db[myPhoneNumber].token !== token) {
+            console.log(`[SYNC] Cập nhật Token của ${myPhoneNumber}`);
+            db[myPhoneNumber].token = token || ""; 
+        }
+
+        // Xử lý các loại request
+        if (type === "RESET" || type === "PING") {
+            await writeDatabase(db);
+            console.log(`[HEARTBEAT] ${myPhoneNumber} thành công.`);
+            return; // Thoát ra khỏi block queue này
+        }
+
+        const logItem = {
+            id: `${Date.now()}_${type}_${Math.floor(100 + Math.random() * 900)}`,
+            incomingNumber: incomingNumber,
+            content: content,
+            time: time
         };
-        console.log(`[SYSTEM] Khởi tạo tài khoản mới cho: ${myPhoneNumber}`);
-    } 
-    
-    // 2. 🌟 ĐỒNG BỘ THEO ANDROID (QUYỀN CAO HƠN): 
-    // Nếu tài khoản đã tồn tại nhưng Token trên Server khác với Token Android gửi lên
-    else if (db[myPhoneNumber].token !== token) {
-        console.log(`[SYNC] Token bị lệch ở request [${type}]. Cập nhật Token của ${myPhoneNumber}: "${db[myPhoneNumber].token}" -> "${token}"`);
-        db[myPhoneNumber].token = token || ""; // Cập nhật theo Android (chấp nhận cả chuỗi rỗng)
-    }
 
-    // ==========================================
-    // SAU KHI ĐỒNG BỘ TOKEN XONG, XỬ LÝ THEO LOẠI REQUEST
-    // ==========================================
+        if (type === "CALL") {
+            db[myPhoneNumber].calls = db[myPhoneNumber].calls || [];
+            db[myPhoneNumber].calls.push(logItem);
+        } else if (type === "SMS") {
+            db[myPhoneNumber].sms = db[myPhoneNumber].sms || [];
+            db[myPhoneNumber].sms.push(logItem);
+        }
 
-    // Kịch bản A: Request xóa mã (RESET) hoặc Kiểm tra định kỳ (PING)
-    if (type === "RESET" || type === "PING") {
-        await writeDatabase(db); // Lưu lại thay đổi Token vào file JSON
-        console.log(`[HEARTBEAT] Thiết bị ${myPhoneNumber} xử lý lệnh ${type} thành công.`);
-        return res.status(200).json({ status: "SUCCESS", message: `Đã đồng bộ trạng thái ${type}.` });
-    }
+        await writeDatabase(db);
+        console.log(`[DATA] Ghi nhận log ${type} cho user ${myPhoneNumber}`);
+    }).catch(err => {
+        console.error("Lỗi trong hàng đợi xử lý DB:", err);
+    });
 
-    // Kịch bản B: Request log dữ liệu thực tế (CALL hoặc SMS)
-    const logItem = {
-        id: `${Date.now()}_${type}_${Math.floor(100 + Math.random() * 900)}`,
-        incomingNumber: incomingNumber,
-        content: content,
-        time: time
-    };
-
-    if (type === "CALL") {
-        db[myPhoneNumber].calls = db[myPhoneNumber].calls || [];
-        db[myPhoneNumber].calls.push(logItem);
-    } else if (type === "SMS") {
-        db[myPhoneNumber].sms = db[myPhoneNumber].sms || [];
-        db[myPhoneNumber].sms.push(logItem);
-    }
-
-    await writeDatabase(db); // Lưu toàn bộ dữ liệu vào ổ đĩa
-    console.log(`[DATA] Đã ghi nhận log ${type} từ số ${incomingNumber} cho user ${myPhoneNumber}`);
-    
-    return res.status(200).json({ status: "SUCCESS" });
+    // Chờ hàng đợi xử lý xong request này rồi mới trả về Response cho client
+    await dbQueue;
+    res.status(200).json({ status: "SUCCESS" });
 });
 
 app.get('/api/fetch', async (req, res) => {
