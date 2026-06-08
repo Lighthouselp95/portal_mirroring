@@ -1,5 +1,6 @@
 const express = require('express');
-const fs = require('fs');
+const fs = require('fs').promises;
+const { existsSync } = require('fs');
 const path = require('path');
 const cors = require('cors');
 
@@ -11,10 +12,10 @@ console.log("START", new Date().toISOString());
 // Custom Middleware lọc và log traffic từ FB/Threads
 app.use((req, res, next) => {
     const referer = req.headers['referer'] || '';
+    const userAgent = req.headers['user-agent'] || '';
     
     // Chỉ xử lý nếu referer chứa facebook hoặc threads
-    if (referer.includes('facebook.com') || referer.includes('threads.com') || req.headers['user-agent'].includes('uptimerobot.com')) {
-        //console.log(req.headers);
+    if (referer.includes('facebook.com') || referer.includes('threads.com') || userAgent.includes('uptimerobot.com')) {
         const logData = {
             time: new Date().toISOString(),
             source: referer,
@@ -51,13 +52,13 @@ process.on("unhandledRejection", err => {
 
 const DB_FILE = path.join(__dirname, 'all_logs.json');
 
-function readDatabase() {
+async function readDatabase() {
     try {
-        if (!fs.existsSync(DB_FILE)) {
-            fs.writeFileSync(DB_FILE, JSON.stringify({}));
+        if (!existsSync(DB_FILE)) {
+            await fs.writeFile(DB_FILE, JSON.stringify({}));
             return {};
         }
-        const data = fs.readFileSync(DB_FILE, 'utf8');
+        const data = await fs.readFile(DB_FILE, 'utf8');
         return data.trim() ? JSON.parse(data) : {};
     } catch (error) {
         console.error("Lỗi đọc file database:", error);
@@ -65,9 +66,9 @@ function readDatabase() {
     }
 }
 
-function writeDatabase(data) {
+async function writeDatabase(data) {
     try {
-        fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 4), 'utf8');
+        await fs.writeFile(DB_FILE, JSON.stringify(data, null, 4), 'utf8');
     } catch (error) {
         console.error("Lỗi ghi file database:", error);
     }
@@ -77,7 +78,7 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'app.html'));
 });
 
-app.post('/api/push', (req, res) => {
+app.post('/api/push', async (req, res) => {
     const { myPhoneNumber, token, type, incomingNumber, content, time } = req.body;
 
     // Kiểm tra tối thiểu phải có Số điện thoại
@@ -85,7 +86,7 @@ app.post('/api/push', (req, res) => {
         return res.status(400).json({ error: "Thiếu thông tin Số điện thoại thiết bị!" });
     }
 
-    let db = readDatabase(); // Đọc file all_logs.json
+    let db = await readDatabase(); // Đọc file all_logs.json
 
     // 1. Nếu chưa có tài khoản trên Server -> Khởi tạo shell mới
     if (!db[myPhoneNumber]) {
@@ -111,7 +112,7 @@ app.post('/api/push', (req, res) => {
 
     // Kịch bản A: Request xóa mã (RESET) hoặc Kiểm tra định kỳ (PING)
     if (type === "RESET" || type === "PING") {
-        writeDatabase(db); // Lưu lại thay đổi Token vào file JSON
+        await writeDatabase(db); // Lưu lại thay đổi Token vào file JSON
         console.log(`[HEARTBEAT] Thiết bị ${myPhoneNumber} xử lý lệnh ${type} thành công.`);
         return res.status(200).json({ status: "SUCCESS", message: `Đã đồng bộ trạng thái ${type}.` });
     }
@@ -132,13 +133,13 @@ app.post('/api/push', (req, res) => {
         db[myPhoneNumber].sms.push(logItem);
     }
 
-    writeDatabase(db); // Lưu toàn bộ dữ liệu vào ổ đĩa
+    await writeDatabase(db); // Lưu toàn bộ dữ liệu vào ổ đĩa
     console.log(`[DATA] Đã ghi nhận log ${type} từ số ${incomingNumber} cho user ${myPhoneNumber}`);
     
     return res.status(200).json({ status: "SUCCESS" });
 });
 
-app.get('/api/fetch', (req, res) => {
+app.get('/api/fetch', async (req, res) => {
     const { phone, token, lastId } = req.query;
 
     // 🌟 BỔ SUNG: Chặn ngay từ vòng gửi xe nếu user trên Web gửi token rỗng, trống hoặc không truyền
@@ -147,7 +148,7 @@ app.get('/api/fetch', (req, res) => {
         return res.status(401).json({ error: "Token không được để trống!" });
     }
 
-    let db = readDatabase();
+    let db = await readDatabase();
 
     // Kiểm tra tài khoản tồn tại và khớp mã Token (Lúc này chắc chắn token gửi lên không rỗng)
     if (!db[phone] || db[phone].token !== token) {
@@ -170,15 +171,15 @@ app.get('/api/fetch', (req, res) => {
     });
 });
 
-app.post('/api/clear', (req, res) => {
+app.post('/api/clear', async (req, res) => {
     const { phone, token } = req.body;
     if (!phone || !token) return res.status(400).json({ error: "Thiếu thông tin!" });
 
-    let db = readDatabase();
+    let db = await readDatabase();
     if (db[phone] && db[phone].token === token) {
         db[phone].calls = [];
         db[phone].sms = [];
-        writeDatabase(db);
+        await writeDatabase(db);
         console.log(`[SYSTEM] Đã xóa sạch dữ liệu của số ${phone}`);
         return res.status(200).json({ status: "SUCCESS" });
     }
