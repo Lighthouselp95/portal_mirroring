@@ -27,7 +27,7 @@ app.use((req, res, next) => {
         };
         
         // In ra console của Render (Chỉ in các click này để tiết kiệm dung lượng log)
-        console.log(userAgent.includes('uptimerobot.com')?`[SOCIAL-CLICK]`:`[UPTIME_ROBOT]`, JSON.stringify(logData));
+        console.log(!userAgent.includes('uptimerobot.com')?`[SOCIAL-CLICK]`:`[UPTIME_ROBOT]`, JSON.stringify(logData));
     }
     
     next();
