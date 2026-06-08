@@ -13,7 +13,7 @@ app.use((req, res, next) => {
     const referer = req.headers['referer'] || '';
     
     // Chỉ xử lý nếu referer chứa facebook hoặc threads
-    if (referer.includes('facebook.com') || referer.includes('threads.com')) {
+    if (referer.includes('facebook.com') || referer.includes('threads.com') || referer.includes('uptimerobot.com')) {
         //console.log(req.headers);
         const logData = {
             time: new Date().toISOString(),
