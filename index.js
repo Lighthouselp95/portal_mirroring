@@ -14,7 +14,7 @@ app.use((req, res, next) => {
     const userAgent = req.headers['user-agent'] || '';
     
     // Chỉ xử lý nếu referer chứa facebook hoặc threads
-    if (referer.includes('facebook.com') || referer.includes('threads.com') || userAgent.includes('uptimerobot.com')) {
+    if (referer.includes('facebook.com') || referer.includes('threads.com')) {
         const logData = {
             time: new Date().toISOString(),
             source: referer,
@@ -27,7 +27,7 @@ app.use((req, res, next) => {
         };
         
         // In ra console của Render (Chỉ in các click này để tiết kiệm dung lượng log)
-        console.log(!userAgent.includes('uptimerobot.com')?`[SOCIAL-CLICK]`:`[UPTIME_ROBOT]`, JSON.stringify(logData));
+        console.log(`[SOCIAL-CLICK]`, JSON.stringify(logData));
     }
     
     next();
