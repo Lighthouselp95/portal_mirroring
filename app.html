@@ -155,18 +155,23 @@
         }
 
         .btn-delete {
-            background: #ff4757 !important;
+            background: #ffffff !important;
+            color: #666 !important;
+            border: 1px solid #e0e0e0 !important;
             width: auto !important;
-            padding: 6px 12px !important;
-            font-size: 14px !important;
+            padding: 6px 14px !important;
+            font-size: 13px !important;
             display: flex;
             align-items: center;
-            gap: 5px;
-            transition: background 0.2s;
+            gap: 6px;
+            transition: all 0.2s;
+            cursor: pointer;
         }
 
         .btn-delete:hover {
-            background: #ff6b81 !important;
+            background: #f5f5f5 !important;
+            border-color: #ccc !important;
+            color: #d63031 !important;
         }
 
         @media (max-width: 768px) {
@@ -374,7 +379,7 @@
                     // Cập nhật lại giao diện
                     handleServerData(all);
 
-                    pollingTimer = setTimeout(syncLogs, 7000);
+                    pollingTimer = setTimeout(syncLogs, 8000);
                 })
                 .catch(() => {
                     document.getElementById("status-text").innerHTML = "⚠️ Mất kết nối, đang thử lại...";
