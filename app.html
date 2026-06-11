@@ -147,6 +147,28 @@
             font-size: 14px;
         }
 
+        .log-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .btn-delete {
+            background: #ff4757 !important;
+            width: auto !important;
+            padding: 6px 12px !important;
+            font-size: 14px !important;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: background 0.2s;
+        }
+
+        .btn-delete:hover {
+            background: #ff6b81 !important;
+        }
+
         @media (max-width: 768px) {
             .main-container {
                 grid-template-columns: 1fr;
@@ -188,7 +210,12 @@
             <button onclick="stopPolling()" style="background: #e74c3c;">Ngắt kết nối</button>
         </div>
         <div class="log-box">
-            <h2>Nhật ký đồng bộ</h2>
+            <div class="log-header">
+                <h2 style="margin:0">Nhật ký đồng bộ</h2>
+                <button class="btn-delete" onclick="confirmClearData()">
+                    <span>🗑️</span> Xóa
+                </button>
+            </div>
             <div id="log-list" style="max-height: 750px; overflow-y: auto;"></div>
         </div>
     </div>
@@ -616,21 +643,8 @@
             if (notificationQueueTimer) clearTimeout(notificationQueueTimer);
             notificationQueue = [];
             notificationQueueTimer = null;
-            
-            // 1. Gửi yêu cầu xóa dữ liệu trên Server
-            try {
-                await fetch('/api/clear', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ phone: inputPhone, token: inputToken })
-                });
-            } catch (e) { console.error("Không thể xóa dữ liệu server:", e); }
 
-            // 2. Dọn dẹp dữ liệu local
-            const dbKey = `db_known_ids_${inputPhone}`;
-            const dbInitializedKey = `db_initialized_${inputPhone}`;
-            localStorage.removeItem(dbKey);
-            localStorage.removeItem(dbInitializedKey);
+            // 1. Chỉ dọn dẹp session đăng nhập, KHÔNG xóa database server
             localStorage.removeItem("saved_user_phone");
             localStorage.removeItem("saved_user_token");
             
@@ -640,7 +654,28 @@
             
             document.getElementById("monitor-screen").classList.add("initial-hidden");
             document.getElementById("login-screen").classList.remove("initial-hidden");
-            document.getElementById("status-text").innerHTML = "🔴 Đã ngắt kết nối và xóa sạch dữ liệu.";
+            document.getElementById("status-text").innerHTML = "🔴 Đã ngắt kết nối.";
+        }
+
+        /**
+         * CHỦ ĐỘNG XÓA DỮ LIỆU TRÊN SERVER
+         */
+        async function confirmClearData() {
+            if (!confirm("Bạn có chắc chắn muốn xóa toàn bộ lịch sử cuộc gọi và tin nhắn trên máy chủ?")) return;
+
+            try {
+                const res = await fetch('/api/clear', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phone: inputPhone, token: inputToken })
+                });
+                const data = await res.json();
+                if (data.status === "SUCCESS") {
+                    alert("Đã dọn dẹp dữ liệu thành công!");
+                    document.getElementById("log-list").innerHTML = "";
+                    latestRenderedLogs = [];
+                } else { alert("Lỗi: " + (data.error || "Không xác định")); }
+            } catch (e) { console.error(e); alert("Không thể kết nối server."); }
         }
     </script>
 </body>

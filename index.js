@@ -93,7 +93,7 @@ app.post('/api/push', async (req, res) => {
     }
 
     // Đưa toàn bộ logic vào hàng đợi để xử lý tuần tự
-    dbQueue = dbQueue.then(async () => {
+    const myTurn = dbQueue.then(async () => {
         let db = await readDatabase(); 
 
         // 1. Nếu chưa có tài khoản trên Server -> Khởi tạo shell mới
@@ -104,6 +104,7 @@ app.post('/api/push', async (req, res) => {
                 calls: [],
                 sms: []
             };
+            await writeDatabase(db);
             console.log(`[SYSTEM] Khởi tạo tài khoản mới cho: ${myPhoneNumber}`);
         } 
         
@@ -111,11 +112,11 @@ app.post('/api/push', async (req, res) => {
         else if (db[myPhoneNumber].token !== token) {
             console.log(`[SYNC] Cập nhật Token của ${myPhoneNumber}`);
             db[myPhoneNumber].token = token || ""; 
+            await writeDatabase(db);
         }
 
         // Xử lý các loại request
-        if (type === "RESET" || type === "PING") {
-            await writeDatabase(db);
+        else if (type === "RESET" || type === "PING") {
             console.log(`[HEARTBEAT] ${myPhoneNumber} thành công.`);
             return; // Thoát ra khỏi block queue này
         }
@@ -137,12 +138,14 @@ app.post('/api/push', async (req, res) => {
 
         await writeDatabase(db);
         console.log(`[DATA] Ghi nhận log ${type} cho user ${myPhoneNumber}`);
-    }).catch(err => {
+    });
+
+    dbQueue = myTurn.catch(err => {
         console.error("Lỗi trong hàng đợi xử lý DB:", err);
     });
 
     // Chờ hàng đợi xử lý xong request này rồi mới trả về Response cho client
-    await dbQueue;
+    await myTurn;
     res.status(200).json({ status: "SUCCESS" });
 });
 
