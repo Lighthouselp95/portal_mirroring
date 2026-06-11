@@ -50,6 +50,7 @@
             padding: 20px;
             border-radius: 4px;
             border: 1px solid #e0e0e0;
+            position: relative; /* Thêm để định vị nút xóa tuyệt đối */
             width: 100%;
             box-sizing: border-box;
         }
@@ -155,23 +156,49 @@
         }
 
         .btn-delete {
-            background: #ffffff !important;
-            color: #666 !important;
-            border: 1px solid #e0e0e0 !important;
-            width: auto !important;
-            padding: 6px 14px !important;
-            font-size: 13px !important;
+            background: transparent;
+            color: #555; /* Slightly darker for better readability */
+            border: 1px solid #eee !important; /* Thêm viền mỏng */
+            position: absolute; /* Đặt ở góc riêng */
+            top: 25px; /* Hạ xuống một tí để cân đối hơn với tiêu đề */
+            right: 20px;
+            width: auto; /* Giữ nguyên auto để tự co giãn */
+            padding: 6px 6px; /* Nới bề dọc, co bề ngang */
+            font-size: 13px;
             display: flex;
             align-items: center;
             gap: 6px;
-            transition: all 0.2s;
+            transition: all 0.2s ease-in-out;
             cursor: pointer;
+            border-radius: 4px;
+            line-height: 1; /* Ensure consistent line height */
+        }
+        
+        .btn-delete span { /* Điều chỉnh độ sáng của icon */
+            opacity: 0.3; /* Further reduce opacity for icon */
+            filter: grayscale(1); /* Keep icon grayscale */
+            transition: all 0.2s ease-in-out;
         }
 
         .btn-delete:hover {
-            background: #f5f5f5 !important;
-            border-color: #ccc !important;
-            color: #d63031 !important;
+            background: #f0f0f0;
+            border-color: #ddd !important;
+            color: #d63031; /* Change button text color on hover */
+        }
+
+        .btn-delete:hover span {
+            opacity: 1; /* Icon sáng rõ khi hover */
+            filter: grayscale(0); /* Hiện lại màu emoji khi hover */
+        }
+
+        .btn-delete .delete-label {
+            opacity: 1; /* Ensure text is not faded by parent span rule */
+            filter: none; /* Ensure text is not grayscale by parent span rule */
+            color: inherit; /* Inherit color from button, which is #555 */
+        }
+
+        .btn-delete:hover .delete-label {
+            color: inherit; /* Inherit color from button, which is #d63031 on hover */
         }
 
         @media (max-width: 768px) {
@@ -217,8 +244,7 @@
         <div class="log-box">
             <div class="log-header">
                 <h2 style="margin:0">Nhật ký đồng bộ</h2>
-                <button class="btn-delete" onclick="confirmClearData()">
-                    <span>🗑️</span> Xóa
+                <button class="btn-delete" onclick="confirmClearData()"><span>🗑️</span> <span class="delete-label">Xóa Log</span>
                 </button>
             </div>
             <div id="log-list" style="max-height: 750px; overflow-y: auto;"></div>

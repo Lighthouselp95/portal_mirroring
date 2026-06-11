@@ -71,7 +71,11 @@ async function readDatabase() {
 
 async function writeDatabase(data) {
     try {
-        await fs.writeFile(DB_FILE, JSON.stringify(data, null, 4), 'utf8');
+        const tempFile = `${DB_FILE}.tmp`;
+        // Ghi vào file tạm trước
+        await fs.writeFile(tempFile, JSON.stringify(data, null, 4), 'utf8');
+        // Đổi tên file tạm thành file chính (thao tác này là Atomic trên hầu hết OS)
+        await fs.rename(tempFile, DB_FILE);
     } catch (error) {
         console.error("Lỗi ghi file database:", error);
     }
