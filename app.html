@@ -201,6 +201,60 @@
             color: inherit; /* Inherit color from button, which is #d63031 on hover */
         }
 
+        /* Modal xác nhận phẳng (Flat Modal) */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.2); /* Nền mờ nhẹ */
+            display: none; /* Ẩn mặc định */
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+        }
+
+        .modal-box {
+            background: #ffffff;
+            padding: 24px;
+            border-radius: 4px;
+            border: 1px solid #eee;
+            width: 320px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            text-align: center;
+            animation: modalFadeIn 0.2s ease-out;
+        }
+
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .modal-box h3 { margin: 0 0 12px 0; font-size: 16px; font-weight: 600; color: #333; }
+        .modal-box p { margin: 0 0 24px 0; font-size: 14px; color: #555; line-height: 1.5; }
+        
+        .modal-footer {
+            display: flex;
+            gap: 12px;
+        }
+
+        .modal-footer button {
+            flex: 1;
+            padding: 10px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .btn-modal-cancel {
+            background: #f5f5f5 !important;
+            color: #666 !important;
+            border: 1px solid #eee !important;
+        }
+
+        .btn-modal-delete {
+            background: #4a4a4a !important; /* Màu xám chì nghệ thuật, nhẹ nhàng hơn */
+            color: #ffffff !important;
+            border: none !important;
+        }
+
         @media (max-width: 768px) {
             .main-container {
                 grid-template-columns: 1fr;
@@ -228,8 +282,8 @@
         <h2>Đồng bộ thiết bị</h2>
         <label>Số điện thoại:</label>
         <input type="text" id="phone-input">
-        <label>Mã Token:</label>
-        <input type="text" id="token-input">
+        <label>Mật khẩu:</label>
+        <input type="password" id="token-input">
         <p id="login-status-text" style="color: red; font-size: 13px;"></p>
         <button onclick="startPolling()">Kết nối hệ thống</button>
     </div>
@@ -251,22 +305,35 @@
         </div>
     </div>
 
+    <!-- Modal xác nhận xóa -->
+    <div id="confirm-modal" class="modal-overlay">
+        <div class="modal-box">
+            <h3>Xác nhận xóa log</h3>
+            <p>Bạn có chắc chắn muốn dọn sạch toàn bộ nhật ký trên máy chủ không?</p>
+            <div class="modal-footer">
+                <button class="btn-modal-cancel" onclick="closeDeleteModal()">Hủy</button>
+                <button class="btn-modal-delete" onclick="executeDeleteLog()">Xác nhận xóa</button>
+            </div>
+        </div>
+    </div>
+
     <script>
-        let inputPhone = "", inputToken = "";
-        let pollingTimer = null;
+        let inputPhone = ""; // SĐT người dùng.
+        let inputToken = ""; // Mật khẩu (token).
+        let pollingTimer = null; // Timer đồng bộ log.
 
         // Giảm thời gian chờ để tin hiện lên nhanh hơn ngay sau thông báo
-        const NEW_ITEM_ANIMATION_MS = 800;
-        const NEW_ITEM_STAGGER_MS = 400; // Tin sau hiện cách tin trước 400ms
-        const NEW_ITEM_HIGHLIGHT_MS = 7000;
-        let sessionNewIds = new Set();
-        let highlightTimers = new Map();
-        let revealTimers = new Map();
-        let revealedNewIds = new Set();
-        let animatedNewIds = new Set();
-        let latestRenderedLogs = [];
-        let notificationQueue = [];
-        let notificationQueueTimer = null;
+        const NEW_ITEM_ANIMATION_MS = 800; // Thời gian chạy animation.
+        const NEW_ITEM_STAGGER_MS = 400; // Độ trễ giữa các log mới.
+        const NEW_ITEM_HIGHLIGHT_MS = 7000; // Thời gian bôi vàng log.
+        let sessionNewIds = new Set(); // ID log mới trong phiên.
+        let highlightTimers = new Map(); // Timer xóa highlight.
+        let revealTimers = new Map(); // Timer chạy animation.
+        let revealedNewIds = new Set(); // Log đã bắt đầu hiện.
+        let animatedNewIds = new Set(); // Log đã hiện xong.
+        let latestRenderedLogs = []; // Dữ liệu log hiện tại.
+        let notificationQueue = []; // Hàng đợi thông báo.
+        let notificationQueueTimer = null; // Timer xử lý hàng đợi.
 
         // Khởi tạo quyền Notification hệ thống ngay khi load trang
         if ("Notification" in window && Notification.permission !== "granted") {
@@ -691,9 +758,17 @@
         /**
          * CHỦ ĐỘNG XÓA DỮ LIỆU TRÊN SERVER
          */
-        async function confirmClearData() {
-            if (!confirm("Bạn có chắc chắn muốn xóa toàn bộ lịch sử cuộc gọi và tin nhắn trên máy chủ?")) return;
+        function confirmClearData() {
+            document.getElementById('confirm-modal').style.display = 'flex';
+        }
 
+        function closeDeleteModal() {
+            document.getElementById('confirm-modal').style.display = 'none';
+        }
+
+        async function executeDeleteLog() {
+            closeDeleteModal();
+            
             try {
                 const res = await fetch('/api/clear', {
                     method: 'POST',

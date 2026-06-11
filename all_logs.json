@@ -6,7 +6,44 @@
     },
     "12322313123": {
         "token": "abcd",
-        "calls": [],
+        "calls": [
+            {
+                "id": "1781159734265_CALL_261",
+                "incomingNumber": "099324239249",
+                "content": "Cuộc gọi thử nghiệm 55",
+                "time": "2026-06-11T06:35:34.241Z"
+            },
+            {
+                "id": "1781159758715_CALL_615",
+                "incomingNumber": "099324239249",
+                "content": "Cuộc gọi thử nghiệm 55",
+                "time": "2026-06-11T06:35:58.703Z"
+            },
+            {
+                "id": "1781159759115_CALL_938",
+                "incomingNumber": "099324239249",
+                "content": "Cuộc gọi thử nghiệm 55",
+                "time": "2026-06-11T06:35:59.102Z"
+            },
+            {
+                "id": "1781159759507_CALL_136",
+                "incomingNumber": "099324239249",
+                "content": "Cuộc gọi thử nghiệm 55",
+                "time": "2026-06-11T06:35:59.493Z"
+            },
+            {
+                "id": "1781159759935_CALL_846",
+                "incomingNumber": "099324239249",
+                "content": "Cuộc gọi thử nghiệm 55",
+                "time": "2026-06-11T06:35:59.919Z"
+            },
+            {
+                "id": "1781159760321_CALL_782",
+                "incomingNumber": "099324239249",
+                "content": "Cuộc gọi thử nghiệm 55",
+                "time": "2026-06-11T06:36:00.307Z"
+            }
+        ],
         "sms": []
     }
 }

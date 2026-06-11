@@ -53,16 +53,13 @@ const DB_FILE = path.join(__dirname, 'all_logs.json');
 
 async function readDatabase() {
     try {
-        // Check if file exists asynchronously using access
         try {
-            await fs.access(DB_FILE);
-        } catch {
-            await fs.writeFile(DB_FILE, JSON.stringify({}), 'utf8');
-            return {};
+            const data = await fs.readFile(DB_FILE, 'utf8');
+            return data.trim() ? JSON.parse(data) : {};
+        } catch (e) {
+            if (e.code === 'ENOENT') return {}; // File chưa tồn tại, trả về object rỗng
+            throw e;
         }
-
-        const data = await fs.readFile(DB_FILE, 'utf8');
-        return data.trim() ? JSON.parse(data) : {};
     } catch (error) {
         console.error("Lỗi đọc file database:", error);
         return {};
@@ -99,6 +96,7 @@ app.post('/api/push', async (req, res) => {
     // Đưa toàn bộ logic vào hàng đợi để xử lý tuần tự
     const myTurn = dbQueue.then(async () => {
         let db = await readDatabase(); 
+        let needsWrite = false;
 
         // 1. Nếu chưa có tài khoản trên Server -> Khởi tạo shell mới
         if (!db[myPhoneNumber]) {
@@ -108,20 +106,21 @@ app.post('/api/push', async (req, res) => {
                 calls: [],
                 sms: []
             };
-            await writeDatabase(db);
+            needsWrite = true;
             console.log(`[SYSTEM] Khởi tạo tài khoản mới cho: ${myPhoneNumber}`);
         } 
         
         // 2. Đồng bộ Token
-        else if (db[myPhoneNumber].token !== token) {
-            console.log(`[SYNC] Cập nhật Token của ${myPhoneNumber}`);
+        if (token && db[myPhoneNumber].token !== token) {
+            console.log(`[SYNC] Cập nhật Mật khẩu của ${myPhoneNumber}`);
             db[myPhoneNumber].token = token || ""; 
-            await writeDatabase(db);
+            needsWrite = true;
         }
 
-        // Xử lý các loại request
-        else if (type === "RESET" || type === "PING") {
+        // 3. Xử lý các loại heartbeat (không ghi log)
+        if (type === "RESET" || type === "PING") {
             console.log(`[HEARTBEAT] ${myPhoneNumber} thành công.`);
+            if (needsWrite) await writeDatabase(db);
             return; // Thoát ra khỏi block queue này
         }
 
@@ -158,13 +157,13 @@ app.get('/api/fetch', async (req, res) => {
 
     // 🌟 BỔ SUNG: Chặn ngay từ vòng gửi xe nếu user trên Web gửi token rỗng, trống hoặc không truyền
     if (!token || token.trim() === "") {
-        console.log(`[WEB REJECT] Từ chối fetch dữ liệu của số ${phone} vì Web gửi Token rỗng.`);
-        return res.status(401).json({ error: "Token không được để trống!" });
+        console.log(`[WEB REJECT] Từ chối fetch dữ liệu của số ${phone} vì Web gửi mật khẩu rỗng.`);
+        return res.status(401).json({ error: "Mật khẩu không được để trống!" });
     }
 
     let db = await readDatabase();
 
-    // Kiểm tra tài khoản tồn tại và khớp mã Token (Lúc này chắc chắn token gửi lên không rỗng)
+    // Kiểm tra tài khoản tồn tại và khớp Mật khẩu (Lúc này chắc chắn mật khẩu gửi lên không rỗng)
     if (!db[phone] || db[phone].token !== token) {
         return res.status(403).json({ error: "Sai thông tin hoặc chưa kích hoạt!" });
     }
