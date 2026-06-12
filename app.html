@@ -80,18 +80,21 @@
         #log-list {
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 0;
             margin-bottom: 6px;
         }
 
         .log-item {
             padding: 8px 12px;
-            margin: 0;
+            margin: 0 0 4px 0;
             border: 1px solid #e0e0e0;
             border-radius: 4px;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
             background: #ffffff;
             font-size: 14px;
+            box-sizing: border-box; /* Giữ form chuẩn không bị nhảy kích thước */
+            /* Giúp việc đổi màu vàng và đổi về trắng mượt mà hơn */
+            transition: background-color 1.2s ease-in-out, border-color 1.2s ease-in-out;
         }
 
         .new-item {
@@ -99,33 +102,33 @@
             border: 1px solid #f90;
         }
 
+        #log-list > .log-item:last-child {
+            margin-bottom: 0;
+        }
+
         .log-reveal {
             overflow: hidden;
             height: 0;
-            opacity: 0;
             margin-bottom: 0;
-            transition: 
-                height 600ms cubic-bezier(0.34, 1.56, 0.64, 1),
-                opacity 400ms ease,
-                margin-bottom 600ms cubic-bezier(0.34, 1.56, 0.64, 1);
-            will-change: height, opacity, margin-bottom;
+            transition:
+                height 1300ms cubic-bezier(0.25, 0.1, 0.25, 1),
+                margin-bottom 1300ms cubic-bezier(0.25, 0.1, 0.25, 1);
+            will-change: height, margin-bottom;
         }
 
-        .log-reveal.is-expanding {
-            opacity: 1;
-        }
         .log-reveal .log-item {
-            transform: translateY(-20px);
-            transition: transform 800ms cubic-bezier(0.25, 0.1, 0.25, 1);
+            margin-bottom: 0;
+            transform: translateY(-100%);
+            transition: transform 1300ms cubic-bezier(0.25, 0.1, 0.25, 1);
+            will-change: transform;
         }
 
         .log-reveal.is-expanding .log-item {
             transform: translateY(0);
         }
 
-        /* Xóa bỏ pending-new-item vì không còn dùng tới */
-        .pending-new-item {
-            display: none;
+        #log-list > .log-reveal:last-child {
+            margin-bottom: 0;
         }
 
         .CALL {
@@ -321,17 +324,14 @@
         let inputPhone = ""; // SĐT người dùng.
         let inputToken = ""; // Mật khẩu (token).
         let pollingTimer = null; // Timer đồng bộ log.
-
-        // Giảm thời gian chờ để tin hiện lên nhanh hơn ngay sau thông báo
-        const NEW_ITEM_ANIMATION_MS = 800; // Thời gian chạy animation.
-        const NEW_ITEM_STAGGER_MS = 400; // Độ trễ giữa các log mới.
+        
+        const NEW_ITEM_ANIMATION_MS = 2000;
+        const NEW_ITEM_STAGGER_MS = NEW_ITEM_ANIMATION_MS;
         const NEW_ITEM_HIGHLIGHT_MS = 7000; // Thời gian bôi vàng log.
         let sessionNewIds = new Set(); // ID log mới trong phiên.
-        let highlightTimers = new Map(); // Timer xóa highlight.
-        let revealTimers = new Map(); // Timer chạy animation.
-        let revealedNewIds = new Set(); // Log đã bắt đầu hiện.
-        let animatedNewIds = new Set(); // Log đã hiện xong.
-        let latestRenderedLogs = []; // Dữ liệu log hiện tại.
+        let entryTimers = new Map(); // Quản lý timer hiện lần lượt
+        let activeTimers = new Map(); // Quản lý các timer xóa highlight
+        let latestRenderedLogs = []; // Giữ tương thích với các thao tác dọn danh sách.
         let notificationQueue = []; // Hàng đợi thông báo.
         let notificationQueueTimer = null; // Timer xử lý hàng đợi.
 
@@ -557,98 +557,118 @@
          * VẼ CÁC THẺ NHẬT KÝ ĐỒNG BỘ LÊN WEB
          */
         function renderLogs(logs) {
-            console.log("renderLogs: Nhận được mảng logs với số lượng:", logs.length, logs); // LOG 1: Kiểm tra mảng logs
             const listDiv = document.getElementById("log-list");
             const template = document.getElementById("log-template");
-            const newItemDelayMap = new Map();
+            
+            let staggerCount = 0;
 
-            logs
-                .filter(item => sessionNewIds.has(item.id))
-                .sort((a, b) => getLogTimestamp(a.id) - getLogTimestamp(b.id))
-                .forEach((item, index) => {
-                    newItemDelayMap.set(item.id, index * NEW_ITEM_STAGGER_MS);
-                });
+            // Duyệt từ cũ đến mới (để prepend cái mới nhất lên đầu sau cùng)
+            [...logs].reverse().forEach(item => {
+                // Nếu item đã hiển thị rồi thì bỏ qua
+                if (findLogElement(item.id) || entryTimers.has(item.id)) return;
 
-            latestRenderedLogs = logs;
-            listDiv.innerHTML = "";
-
-            logs.forEach(item => {
-                console.log("renderLogs: Đang xử lý item ID:", item.id); // LOG 2: Kiểm tra từng item
                 const clone = template.content.cloneNode(true);
                 const itemDiv = clone.querySelector('.log-item');
-                let shouldRevealNewItem = false;
-
+                
                 itemDiv.dataset.logId = item.id;
                 itemDiv.classList.add(item.type);
-
-                // KIỂM TRA: Nếu ID nằm trong danh sách tin mới của phiên này -> Bôi vàng
-                if (sessionNewIds.has(item.id)) {
-                    if (!revealedNewIds.has(item.id)) {
-                        itemDiv.classList.add('pending-new-item');
-                        scheduleNewItemReveal(item.id, newItemDelayMap.get(item.id) || 0);
-                    } else {
-                        itemDiv.classList.add('new-item');
-                        scheduleHighlightRemoval(item.id);
-
-                        if (!animatedNewIds.has(item.id)) {
-                            animatedNewIds.add(item.id);
-                            shouldRevealNewItem = true;
-                        }
-                    }
-                }
-
                 clone.querySelector('.txt-type').innerText = item.type;
                 clone.querySelector('.txt-time').innerText = item.time;
                 clone.querySelector('.txt-number').innerText = item.incomingNumber;
                 clone.querySelector('.txt-content').innerText = item.content || '';
 
-                if (shouldRevealNewItem) {
-                    revealNewItem(listDiv, itemDiv);
-                } else {
-                    listDiv.appendChild(itemDiv);
+                // Nếu là tin mới phát hiện trong phiên này
+                if (sessionNewIds.has(item.id)) {
+                    scheduleLogEntry(listDiv, itemDiv, staggerCount * NEW_ITEM_STAGGER_MS);
+                    staggerCount++;
+                    return;
                 }
+
+                // Thêm vào đầu danh sách (mới nhất hiện lên trên)
+                prependLogElement(listDiv, itemDiv);
             });
+
+            // (Tùy chọn) Xóa bớt log cũ nếu danh sách quá dài để tránh lag DOM
+            while (listDiv.children.length > 100) {
+                listDiv.removeChild(listDiv.lastChild);
+            }
         }
 
-        function revealNewItem(listDiv, itemDiv) {
+        function findLogElement(id) {
+            return Array.from(document.querySelectorAll('[data-log-id]'))
+                .find(element => element.dataset.logId === id);
+        }
+
+        function prependLogElement(listDiv, element) {
+            if (listDiv.firstChild) {
+                listDiv.insertBefore(element, listDiv.firstChild);
+            } else {
+                listDiv.appendChild(element);
+            }
+        }
+
+        function scheduleLogEntry(listDiv, itemDiv, delayMs) {
+            const id = itemDiv.dataset.logId;
+            const timer = setTimeout(() => {
+                entryTimers.delete(id);
+
+                if (findLogElement(id)) return;
+
+                itemDiv.classList.add('new-item');
+                revealLogElement(listDiv, itemDiv);
+                scheduleHighlightRemoval(id);
+            }, delayMs);
+
+            entryTimers.set(id, timer);
+        }
+
+        function revealLogElement(listDiv, itemDiv) {
             const wrapper = document.createElement('div');
             wrapper.className = 'log-reveal';
+            const movingElements = Array.from(listDiv.children);
+            const firstTops = new Map(
+                movingElements.map(element => [element, element.getBoundingClientRect().top])
+            );
 
-            // Tạo bản sao tạm để đo chiều cao chính xác mà không làm gián đoạn DOM chính
-            const clone = itemDiv.cloneNode(true);
-            clone.style.visibility = 'hidden';
-            clone.style.position = 'absolute';
-            clone.style.width = listDiv ? getComputedStyle(listDiv).width : '100%';
-            clone.style.height = 'auto';
-            document.body.appendChild(clone);
-            const targetHeight = clone.offsetHeight;
-            document.body.removeChild(clone);
-            const targetMargin = 4; // Khớp với gap của #log-list
+            wrapper.appendChild(itemDiv);
+            prependLogElement(listDiv, wrapper);
 
-            if (listDiv) {
-                wrapper.appendChild(itemDiv);
-                listDiv.insertBefore(wrapper, listDiv.firstChild);
-            } else {
-                itemDiv.replaceWith(wrapper);
-                wrapper.appendChild(itemDiv);
-            }
+            const targetHeight = itemDiv.offsetHeight;
+            wrapper.style.height = `${targetHeight}px`;
+            wrapper.style.minHeight = `${targetHeight}px`;
+            wrapper.style.marginBottom = movingElements.length > 0 ? '4px' : '0';
 
-            // Thực hiện animation
-            requestAnimationFrame(() => {
-                wrapper.style.height = `${targetHeight}px`;
-                wrapper.style.marginBottom = `${targetMargin}px`;
-                wrapper.classList.add('is-expanding');
+            movingElements.forEach(element => {
+                const firstTop = firstTops.get(element);
+                const lastTop = element.getBoundingClientRect().top;
+                const deltaY = firstTop - lastTop;
+
+                if (deltaY === 0) return;
+
+                element.style.transition = 'none';
+                element.style.transform = `translateY(${deltaY}px)`;
+                element.style.willChange = 'transform';
             });
 
-            const finishReveal = (event) => {
-                if (event.propertyName !== 'height' && event.target !== wrapper) return;
-                wrapper.removeEventListener('transitionend', finishReveal);
-                wrapper.style.height = 'auto';
-                wrapper.style.overflow = 'visible';
-                wrapper.style.marginBottom = '0'; // Trả lại layout tự nhiên của container gap
-            };
+            wrapper.offsetHeight;
 
-            wrapper.addEventListener('transitionend', finishReveal);
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    wrapper.classList.add('is-expanding');
+                    movingElements.forEach(element => {
+                        element.style.transition = 'transform 1300ms cubic-bezier(0.25, 0.1, 0.25, 1)';
+                        element.style.transform = '';
+                    });
+                });
+            });
+
+            setTimeout(() => {
+                movingElements.forEach(element => {
+                    element.style.transition = '';
+                    element.style.transform = '';
+                    element.style.willChange = '';
+                });
+            }, NEW_ITEM_ANIMATION_MS + 80);
         }
 
         /**
@@ -662,75 +682,31 @@
             sessionNewIds.add(id);
         }
 
-        function scheduleNewItemReveal(id, delayMs) {
-            if (revealedNewIds.has(id) || revealTimers.has(id)) {
-                return;
-            }
-
-            const timer = setTimeout(() => {
-                revealTimers.delete(id);
-                revealedNewIds.add(id);
-                revealScheduledNewItem(id);
-            }, delayMs);
-
-            revealTimers.set(id, timer);
-        }
-
-        function revealScheduledNewItem(id) {
-            if (!sessionNewIds.has(id)) {
-                return;
-            }
-
-            const itemDiv = Array.from(document.querySelectorAll('[data-log-id]'))
-                .find(element => element.dataset.logId === id);
-            if (!itemDiv) {
-                renderLogs(latestRenderedLogs);
-                return;
-            }
-
-            itemDiv.classList.remove('pending-new-item');
-            itemDiv.classList.add('new-item');
-            scheduleHighlightRemoval(id);
-
-            if (!animatedNewIds.has(id)) {
-                animatedNewIds.add(id);
-                revealNewItem(null, itemDiv);
-            }
-        }
-
         function scheduleHighlightRemoval(id) {
-            if (highlightTimers.has(id)) {
-                return;
-            }
+            if (activeTimers.has(id)) return;
 
             const timer = setTimeout(() => {
+                activeTimers.delete(id);
                 sessionNewIds.delete(id);
-                highlightTimers.delete(id);
-                revealedNewIds.delete(id);
-                animatedNewIds.delete(id);
                 removeNewItemHighlight(id);
             }, NEW_ITEM_HIGHLIGHT_MS);
 
-            highlightTimers.set(id, timer);
+            activeTimers.set(id, timer);
         }
 
         function removeNewItemHighlight(id) {
-            const itemDiv = Array.from(document.querySelectorAll('[data-log-id]'))
-                .find(element => element.dataset.logId === id);
-
+            const itemDiv = findLogElement(id);
             if (itemDiv) {
                 itemDiv.classList.remove('new-item');
             }
         }
 
         function clearNewItemHighlights() {
-            highlightTimers.forEach(timer => clearTimeout(timer));
-            revealTimers.forEach(timer => clearTimeout(timer));
-            highlightTimers.clear();
-            revealTimers.clear();
+            entryTimers.forEach(timer => clearTimeout(timer));
+            activeTimers.forEach(timer => clearTimeout(timer));
+            entryTimers.clear();
+            activeTimers.clear();
             sessionNewIds.clear();
-            revealedNewIds.clear();
-            animatedNewIds.clear();
         }
 
         /**
