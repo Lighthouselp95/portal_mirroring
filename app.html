@@ -584,8 +584,8 @@
                     return;
                 }
 
-                // Thêm vào đầu danh sách (mới nhất hiện lên trên)
-                prependLogElement(listDiv, itemDiv);
+                // Tìm vị trí chính xác để chèn dựa trên thời gian (giảm dần)
+                insertLogByOrder(listDiv, itemDiv);
             });
 
             // (Tùy chọn) Xóa bớt log cũ nếu danh sách quá dài để tránh lag DOM
@@ -599,11 +599,25 @@
                 .find(element => element.dataset.logId === id);
         }
 
-        function prependLogElement(listDiv, element) {
-            if (listDiv.firstChild) {
-                listDiv.insertBefore(element, listDiv.firstChild);
+        /**
+         * Tìm vị trí thích hợp và chèn phần tử vào DOM theo thứ tự thời gian giảm dần
+         */
+        function insertLogByOrder(container, element) {
+            const newId = element.dataset.logId || element.querySelector('.log-item').dataset.logId;
+            const newTS = getLogTimestamp(newId);
+            
+            const children = Array.from(container.children);
+            // Tìm phần tử đầu tiên có thời gian cũ hơn (nhỏ hơn) tin nhắn mới
+            const successor = children.find(child => {
+                const childItem = child.classList.contains('log-item') ? child : child.querySelector('.log-item');
+                if (!childItem) return false;
+                return getLogTimestamp(childItem.dataset.logId) < newTS;
+            });
+
+            if (successor) {
+                container.insertBefore(element, successor);
             } else {
-                listDiv.appendChild(element);
+                container.appendChild(element);
             }
         }
 
@@ -631,12 +645,13 @@
             );
 
             wrapper.appendChild(itemDiv);
-            prependLogElement(listDiv, wrapper);
+            // Chèn wrapper vào đúng vị trí thứ tự thời gian thay vì luôn prepend
+            insertLogByOrder(listDiv, wrapper);
 
             const targetHeight = itemDiv.offsetHeight;
             wrapper.style.height = `${targetHeight}px`;
             wrapper.style.minHeight = `${targetHeight}px`;
-            wrapper.style.marginBottom = movingElements.length > 0 ? '4px' : '0';
+            wrapper.style.marginBottom = wrapper.nextElementSibling ? '4px' : '0';
 
             movingElements.forEach(element => {
                 const firstTop = firstTops.get(element);
