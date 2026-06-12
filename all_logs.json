@@ -1044,8 +1044,63 @@
                 "incomingNumber": "099324239249",
                 "content": "Cuộc gọi thử nghiệm 55",
                 "time": "2026-06-12T04:21:07.928Z"
+            },
+            {
+                "id": "1781244748311_CALL_150",
+                "incomingNumber": "099324239249",
+                "content": "Cuộc gọi thử nghiệm 55",
+                "time": "2026-06-12T06:12:28.289Z"
+            },
+            {
+                "id": "1781244748973_CALL_907",
+                "incomingNumber": "099324239249",
+                "content": "Cuộc gọi thử nghiệm 55",
+                "time": "2026-06-12T06:12:28.961Z"
+            },
+            {
+                "id": "1781244749955_CALL_841",
+                "incomingNumber": "099324239249",
+                "content": "Cuộc gọi thử nghiệm 55",
+                "time": "2026-06-12T06:12:29.944Z"
+            },
+            {
+                "id": "1781244770882_CALL_969",
+                "incomingNumber": "099324239249",
+                "content": "Cuộc gọi thử nghiệm 55",
+                "time": "2026-06-12T06:12:50.868Z"
+            },
+            {
+                "id": "1781244771276_CALL_836",
+                "incomingNumber": "099324239249",
+                "content": "Cuộc gọi thử nghiệm 55",
+                "time": "2026-06-12T06:12:51.259Z"
+            },
+            {
+                "id": "1781244771705_CALL_629",
+                "incomingNumber": "099324239249",
+                "content": "Cuộc gọi thử nghiệm 55",
+                "time": "2026-06-12T06:12:51.694Z"
+            },
+            {
+                "id": "1781244811667_CALL_470",
+                "incomingNumber": "099324239249",
+                "content": "Cuộc gọi thử nghiệm 55",
+                "time": "2026-06-12T06:13:31.656Z"
             }
         ],
-        "sms": []
+        "sms": [
+            {
+                "id": "1781244849765_SMS_477",
+                "incomingNumber": "099324239249",
+                "content": "Cuộc gọi thử nghiệm 55",
+                "time": "2026-06-12T06:14:09.751Z"
+            },
+            {
+                "id": "1781244850329_SMS_791",
+                "incomingNumber": "099324239249",
+                "content": "Cuộc gọi thử nghiệm 55",
+                "time": "2026-06-12T06:14:10.315Z"
+            }
+        ]
     }
 }

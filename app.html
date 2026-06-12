@@ -325,9 +325,9 @@
         let inputToken = ""; // Mật khẩu (token).
         let pollingTimer = null; // Timer đồng bộ log.
         
-        const NEW_ITEM_ANIMATION_MS = 2000;
-        const NEW_ITEM_STAGGER_MS = NEW_ITEM_ANIMATION_MS;
-        const NEW_ITEM_HIGHLIGHT_MS = 7000; // Thời gian bôi vàng log.
+        const NEW_ITEM_ANIMATION_MS = 1300; // Khớp với CSS transition (1300ms)
+        const NEW_ITEM_STAGGER_MS = 400;    // Giảm thời gian chờ giữa các tin mới để F5 mượt hơn
+        const NEW_ITEM_HIGHLIGHT_MS = 12000; // Thời gian bôi vàng log.
         let sessionNewIds = new Set(); // ID log mới trong phiên.
         let entryTimers = new Map(); // Quản lý timer hiện lần lượt
         let activeTimers = new Map(); // Quản lý các timer xóa highlight
@@ -562,8 +562,8 @@
             
             let staggerCount = 0;
 
-            // Duyệt từ cũ đến mới (để prepend cái mới nhất lên đầu sau cùng)
-            [...logs].reverse().forEach(item => {
+            // Duyệt từ MỚI nhất đến CŨ nhất (đã được sort ở handleServerData)
+            logs.forEach(item => {
                 // Nếu item đã hiển thị rồi thì bỏ qua
                 if (findLogElement(item.id) || entryTimers.has(item.id)) return;
 
