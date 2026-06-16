@@ -472,7 +472,7 @@
                     // Cập nhật lại giao diện
                     handleServerData(all);
 
-                    pollingTimer = setTimeout(syncLogs, 5000);
+                    pollingTimer = setTimeout(syncLogs, 4000);
                 })
                 .catch(() => {
                     document.getElementById("status-text").innerHTML = "⚠️ Mất kết nối, đang thử lại...";
